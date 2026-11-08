@@ -215,7 +215,7 @@ class AmeApplication : Application(), SingletonImageLoader.Factory, Configuratio
                     chain.request().newBuilder()
                         .header(
                             "User-Agent",
-                            "Ame/${BuildConfig.VERSION_NAME} (Android; +https://github.com/AbhishekS04/ame)",
+                            "Ame/${BuildConfig.VERSION_NAME} (Android; +https://github.com/AbhishekS04/ame-music)",
                         )
                         .build(),
                 )

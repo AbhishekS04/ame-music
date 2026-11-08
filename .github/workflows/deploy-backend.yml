@@ -26,7 +26,23 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
+      # The Listen Together server is optional. When its deploy credentials
+      # are not configured, skip the deployment instead of failing the run.
+      - name: Check deployment credentials
+        id: guard
+        env:
+          KEY: ${{ secrets.ORACLE_DEPLOY_KEY }}
+          HOST: ${{ secrets.ORACLE_HOST }}
+          KNOWN_HOSTS: ${{ secrets.ORACLE_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$KEY" ] || [ -z "$HOST" ] || [ -z "$KNOWN_HOSTS" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Oracle credentials are not configured; skipping deployment."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Deploy to the Oracle VM
+        if: steps.guard.outputs.configured == 'true'
         env:
           KEY: ${{ secrets.ORACLE_DEPLOY_KEY }}
           HOST: ${{ secrets.ORACLE_HOST }}

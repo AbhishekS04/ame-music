@@ -8,9 +8,9 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/AbhishekS04/ame/backend/clock"
-	"github.com/AbhishekS04/ame/backend/codes"
-	"github.com/AbhishekS04/ame/backend/config"
+	"github.com/AbhishekS04/ame-music/backend/clock"
+	"github.com/AbhishekS04/ame-music/backend/codes"
+	"github.com/AbhishekS04/ame-music/backend/config"
 )
 
 // PartyError represents an error with an HTTP status code and wire error code.

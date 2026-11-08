@@ -69,7 +69,7 @@ CI run (not a leak, just a missing secret).
 environment, falling back to:
 
 ```
-https://raw.githubusercontent.com/AbhishekS04/ame/main/announcements.json
+https://raw.githubusercontent.com/AbhishekS04/ame-music/main/announcements.json
 ```
 
 After the repository is renamed or moved, override it in `local.properties`

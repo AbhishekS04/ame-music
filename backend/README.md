@@ -273,45 +273,32 @@ Caddy in front for HTTPS and WebSockets. Files are in `deploy/`.
 Check it with `curl https://<domain>/healthz`. Logs are in
 `journalctl -u ame-jam` and `journalctl -u caddy`.
 
-## Deploying to Render
+## Deploying to Render or Railway
 
-The blueprint is `render.yaml`, but Render reads blueprints from the repository
-root and this one lives in `backend/`. Either copy it up a level, or create the
-service by hand — which is one screen:
+The full walkthrough — free Render blueprint, Railway, environment variables,
+keep-alive monitors and pointing the app at the service — is in
+[docs/BACKEND_DEPLOY.md](../docs/BACKEND_DEPLOY.md).
 
-- **New → Web Service**, connect this repo
-- **Root Directory** `backend`
-- **Runtime** Go
-- **Build Command** `go build -o server .`
-- **Start Command** `./server`
-- **Health check path** `/healthz`
-- **Instances** 1
-
-Then point the app at `https://<service>.onrender.com`, by adding this to
-`local.properties` at the repository root:
-
-```properties
-LISTEN_TOGETHER_SERVER=https://<service>.onrender.com
-```
-
-That becomes `BuildConfig.LISTEN_TOGETHER_SERVER` and seeds the address box on
-the Listen Together screen. It is only a default — anything typed into that box
-wins and persists, so running your own copy of this server never means editing
-the build. `local.properties` is gitignored, so a fresh checkout builds with an
-empty default and simply asks for an address the first time the screen is
-opened.
-
-Two things about Render specifically:
+Two things that apply to every host:
 
 - **Keep it to one instance.** A party lives in the memory of the instance
   holding its WebSockets, so a second instance is a second, disjoint set of
   parties, and a join lands in whichever one the load balancer picked. Outgrowing
   that is a Redis pub/sub swap behind `PartyStore` — nothing above it moves.
-- **The free plan spins down after ~15 minutes idle**, which closes every
-  WebSocket and drops every party, and the next request then waits ~30 s for a
-  cold start. Fine for development; for real use this wants the paid instance
-  type, where the process stays up (or a free uptime monitor pinging `/healthz`
-  every 12 minutes).
+- **A free Render service spins down after ~15 minutes idle**, which closes
+  every WebSocket and drops every party, and the next request then waits ~30 s
+  for a cold start. A free uptime monitor pinging `/healthz` every 5–12 minutes
+  keeps it warm; it does not preserve parties across a restart.
+
+Point the app at the service by adding this to `local.properties`, or set the
+same value as the `LISTEN_TOGETHER_SERVER` GitHub Actions secret:
+
+```properties
+LISTEN_TOGETHER_SERVER=https://<service>.onrender.com
+```
+
+It seeds the address box on the Listen Together screen; anything typed there
+wins and persists, and `local.properties` is gitignored.
 
 ### Environment
 

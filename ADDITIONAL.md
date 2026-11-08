@@ -5,8 +5,10 @@ in [README.md](README.md).
 
 ## Project
 
-- [Listen Together server](backend/README.md) — architecture, protocol and
-  deployment of the party server.
+- [Listen Together server](backend/README.md) — architecture and protocol of
+  the party server.
+- [Backend deployment](docs/BACKEND_DEPLOY.md) — Render, Railway, environment
+  variables and keep-alive setup.
 - [Addons](docs/ADDONS.md) — how addons work and how to add one manually.
 - [Lyrics translation](docs/LYRICS_TRANSLATION.md) — pipeline, timing
   projection and UI behaviour.

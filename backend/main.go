@@ -18,13 +18,13 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/AbhishekS04/ame/backend/clock"
-	"github.com/AbhishekS04/ame/backend/codes"
-	"github.com/AbhishekS04/ame/backend/config"
-	"github.com/AbhishekS04/ame/backend/hub"
-	"github.com/AbhishekS04/ame/backend/party"
-	"github.com/AbhishekS04/ame/backend/presence"
-	"github.com/AbhishekS04/ame/backend/protocol"
+	"github.com/AbhishekS04/ame-music/backend/clock"
+	"github.com/AbhishekS04/ame-music/backend/codes"
+	"github.com/AbhishekS04/ame-music/backend/config"
+	"github.com/AbhishekS04/ame-music/backend/hub"
+	"github.com/AbhishekS04/ame-music/backend/party"
+	"github.com/AbhishekS04/ame-music/backend/presence"
+	"github.com/AbhishekS04/ame-music/backend/protocol"
 )
 
 var (
@@ -751,7 +751,7 @@ var inviteTemplate = template.Must(template.New("invite").Parse(`<!DOCTYPE html>
             <a id="joinBtn" href="{{.IntentURI}}" class="btn">Join Party in Ame</a>
             <p class="footer-note">
                 Didn’t open automatically? Tap the button above.<br>
-                Don't have Ame yet? <a href="https://github.com/AbhishekS04/ame/releases" target="_blank" rel="noopener">Download it here</a>.
+                Don't have Ame yet? <a href="https://github.com/AbhishekS04/ame-music/releases" target="_blank" rel="noopener">Download it here</a>.
             </p>
             <script>
                 var intentUri = {{.IntentURI}};

@@ -1615,7 +1615,7 @@ fun SettingsScreen(
                         textDecoration = TextDecoration.Underline,
                     ),
                 )
-                withLink(LinkAnnotation.Url("https://github.com/AbhishekS04/ame", linkStyles)) {
+                withLink(LinkAnnotation.Url("https://github.com/AbhishekS04/ame-music", linkStyles)) {
                     append("GitHub")
                 }
                 append("\n~YouTube Music & Listen Together Backend")

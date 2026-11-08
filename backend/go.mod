@@ -1,4 +1,4 @@
-module github.com/AbhishekS04/ame/backend
+module github.com/AbhishekS04/ame-music/backend
 
 go 1.27.0
 

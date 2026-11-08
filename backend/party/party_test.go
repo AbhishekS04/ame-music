@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/AbhishekS04/ame/backend/codes"
-	"github.com/AbhishekS04/ame/backend/config"
+	"github.com/AbhishekS04/ame-music/backend/codes"
+	"github.com/AbhishekS04/ame-music/backend/config"
 )
 
 func TestCodeNormalisation(t *testing.T) {

@@ -4,7 +4,7 @@
 set -euo pipefail
 SRC=/opt/ame-src
 if [ ! -d "$SRC/.git" ]; then
-  git clone --depth 1 --branch main https://github.com/AbhishekS04/ame.git "$SRC"
+  git clone --depth 1 --branch main https://github.com/AbhishekS04/ame-music.git "$SRC"
 fi
 git -C "$SRC" fetch --depth 1 origin main
 git -C "$SRC" reset --hard FETCH_HEAD

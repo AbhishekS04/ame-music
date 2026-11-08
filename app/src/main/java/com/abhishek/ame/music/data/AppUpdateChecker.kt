@@ -15,6 +15,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Request
 import java.io.File
@@ -46,7 +47,7 @@ object AppUpdateChecker {
     private const val TV_APK_PREFIX = "ame-tv-"
 
     private const val LATEST_RELEASE_URL =
-        "https://api.github.com/repos/AbhishekS04/ame/releases/latest"
+        "https://api.github.com/repos/AbhishekS04/ame-music/releases/latest"
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -68,8 +69,47 @@ object AppUpdateChecker {
     @Volatile
     private var downloadCancelled = false
 
+    /**
+     * Reads the repository's latest published release once per launch.
+     *
+     * The repo is public on purpose: this request carries no token and no
+     * account, so it can only read a public "latest release" endpoint. A
+     * private repository answers 404 to an anonymous GET and the app simply
+     * shows no update. Failure is silent — offline, rate-limited or no
+     * releases yet all mean "nothing new".
+     */
     suspend fun check() = withContext(Dispatchers.IO) {
-        // Disabled per user instruction. App will not pull updates from GitHub.
+        runCatching {
+            val request = Request.Builder()
+                .url(LATEST_RELEASE_URL)
+                .header("Accept", "application/vnd.github+json")
+                .build()
+
+            Http.client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext
+                val release = json.parseToJsonElement(response.body.string()).jsonObject
+
+                // Tags are written "v1.8.0"; the comparison wants "1.8.0".
+                val tag = release["tag_name"]
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    ?.trim()
+                    ?.removePrefix("v")
+                    ?.removePrefix("V")
+                    ?: return@withContext
+                if (!isNewer(tag, BuildConfig.VERSION_NAME)) return@withContext
+
+                _available.value = UpdateInfo(
+                    version = tag,
+                    releaseUrl = release["html_url"]
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                        ?: return@withContext,
+                    apkUrl = apkAssetUrl(release),
+                    notes = release["body"]?.jsonPrimitive?.contentOrNull,
+                )
+            }
+        }
     }
 
     /**

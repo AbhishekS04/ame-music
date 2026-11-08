@@ -1,16 +1,11 @@
-# Render blueprint for Ame Listen Together (Go backend)
+# Render blueprint for the Ame Listen Together server.
 #
-# Deploy this service manually on Render Dashboard (Recommended):
-# - New -> Web Service, connect repo
-# - Root Directory: backend
-# - Runtime: Go
-# - Build Command: go build -o server .
-# - Start Command: ./server
-# - Health Check Path: /healthz
-# - Plan: Free
-# - Region: Singapore (or closest to you)
-# - Instances: 1 (Parties live in memory, so keep to 1 instance)
-
+# Render reads blueprints from the repository root only, which is why this file
+# is here rather than in backend/. Apply it with:
+#   Render Dashboard -> New -> Blueprint -> connect this repository.
+#
+# Keep this at one instance: parties live in the memory of the process holding
+# their WebSockets, so a second instance is a second, disjoint set of parties.
 services:
   - type: web
     name: ame-listen-together
@@ -38,8 +33,7 @@ services:
       # Render terminates TLS and supplies the real client IP in X-Forwarded-For.
       - key: JAM_TRUST_PROXY
         value: "true"
-      # Set to the public https origin (e.g. https://party.example.com) when a
-      # proxy in front of Render may not carry X-Forwarded-Proto through;
-      # invite deep links then use it verbatim.
-      - key: JAM_PUBLIC_ORIGIN
+      # The browser player's origin. Native apps send no Origin and are always
+      # accepted. Add another origin here, comma-separated, for a custom domain.
+      - key: JAM_ALLOWED_ORIGINS
         value: https://ame-music.vercel.app

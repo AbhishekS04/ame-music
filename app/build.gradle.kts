@@ -63,7 +63,7 @@ val listenTogetherServer: String = (
 val announcementUrl: String = (
     localProps.getProperty("ANNOUNCEMENT_URL")
         ?: System.getenv("ANNOUNCEMENT_URL")
-        ?: "https://raw.githubusercontent.com/AbhishekS04/ame/main/announcements.json"
+        ?: "https://raw.githubusercontent.com/AbhishekS04/ame-music/main/announcements.json"
     ).trim()
 
 // See the root build.gradle.kts: one version for the phone and its watch app.
