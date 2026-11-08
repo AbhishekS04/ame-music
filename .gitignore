@@ -1,0 +1,106 @@
+# ── Secrets: never commit ────────────────────────────────────────────────────
+# Release signing. `keystore.properties` contains the real passwords and the
+# .jks is the key itself; either one in the repository lets anyone sign an
+# update that Android will install over the real app.
+keystore.properties
+keystore.properties.*
+!keystore.properties.example
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+*.p8
+*.mobileprovision
+*.ovpn
+google-services.json
+GoogleService-Info.plist
+
+# Environment files. Only .example templates are meant to be committed.
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Machine-specific paths (Android SDK location, local overrides).
+local.properties
+local.properties.*
+
+# ── Build output and caches ──────────────────────────────────────────────────
+.gradle/
+.gradle-cache/
+.kotlin/
+**/.cxx/
+**/build/
+build/
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+gradle-app.setting
+captures/
+.externalNativeBuild/
+*.hprof
+*.jfr
+*.exec
+*.class
+hs_err_pid*
+replay_pid*
+__pycache__/
+*.py[cod]
+
+# ── Dependencies and generated web output ────────────────────────────────────
+node_modules/
+**/node_modules/
+.pnpm-store/
+**/dist/
+**/.vercel/
+**/.turbo/
+**/.vite/
+**/.wxt/
+**/coverage/
+**/.output/
+*.tsbuildinfo
+.eslintcache
+
+# ── IDE / editor ─────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+.fleet/
+*.iml
+*.ipr
+*.iws
+.navigation/
+.history/
+*.swp
+*.swo
+.~*
+
+# ── Logs and scratch files ───────────────────────────────────────────────────
+*.log
+logs/
+**/logs/
+.DS_Store
+Thumbs.db
+*.bak
+*.orig
+*.rej
+.shots/
+.tmp_verify/
+.debug/
+/output/
+**/output/
+
+# ── AI agent configuration (contains personal prompt/config state) ───────────
+.commandcode/
+.claude/
+.cursor/
+.aider*
+AGENTS.md
+CLAUDE.md
+
+# ── Built packages ───────────────────────────────────────────────────────────
+*.apk
+*.aab
+*.ipa

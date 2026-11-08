@@ -1,0 +1,34 @@
+# Secret scanning rules for this repository.
+#
+# Extends gitleaks' default rules (API keys, private keys, tokens, cloud
+# credentials) and allowlists only two constants that are deliberately public
+# and shipped by third-party clients, plus generated/vendor directories that
+# are not part of the source.
+title = "Ame secret scanning"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Vendored/build output and public third-party client constants"
+
+paths = [
+  '''(^|/)node_modules/''',
+  '''(^|/)build/''',
+  '''(^|/)\.cxx/''',
+  '''(^|/)\.gradle/''',
+  '''(^|/)\.kotlin/''',
+  '''(^|/)dist/''',
+  '''(^|/)logs/''',
+  '''(^|/)pnpm-lock\.yaml$''',
+  '''(^|/)package-lock\.json$''',
+  '''(^|/)gradle-wrapper\.jar$''',
+]
+
+regexes = [
+  # Musixmatch's public web signing constant, mirrored from the upstream
+  # open-source clients. It is not an account credential.
+  '''f09016176ba43a1cfd1031fbd6b3d26c''',
+  # YouTube's public InnerTube web API key shipped in every browser client.
+  '''AIzaSyDyT5W0Jh49F30Pqqtyfdf7pDLFKLJoAnw''',
+]

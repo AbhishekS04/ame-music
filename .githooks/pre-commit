@@ -1,0 +1,37 @@
+#!/usr/bin/env sh
+# Blocks secret-bearing files and high-signal credentials from being committed.
+# Installed with: scripts/install-git-hooks.sh
+# Bypass is deliberately not documented: if this fires, fix the commit.
+set -eu
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged" ] && exit 0
+
+blocked=$(printf '%s\n' "$staged" | grep -E \
+  '(^|/)(keystore\.properties|local\.properties|google-services\.json|GoogleService-Info\.plist)$|\.(jks|keystore|p12|pfx|pem|key|p8|mobileprovision|ovpn)$|(^|/)\.env($|\.)' \
+  | grep -v 'keystore\.properties\.example' \
+  | grep -v '\.env\.example$' || true)
+
+if [ -n "$blocked" ]; then
+  printf '\nBLOCKED: secret-bearing file staged for commit:\n%s\n\n' "$blocked" >&2
+  printf 'Remove it with: git restore --staged <file>\n' >&2
+  printf 'The file stays on disk; it must never be tracked.\n\n' >&2
+  exit 1
+fi
+
+# High-signal credential shapes only. Public app constants (YouTube's API key,
+# Musixmatch's signing constant) are intentionally not matched here.
+scan=$(printf '%s\n' "$staged" | while IFS= read -r f; do
+  [ -f "$f" ] || continue
+  grep -I -n -E \
+    '-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|sk-(live|proj|ant)-[A-Za-z0-9_-]{16,}' \
+    "$f" 2>/dev/null || true
+done)
+
+if [ -n "$scan" ]; then
+  printf '\nBLOCKED: possible credential in staged files:\n%s\n\n' "$scan" >&2
+  printf 'Move it to local.properties / an environment variable before committing.\n\n' >&2
+  exit 1
+fi
+
+exit 0

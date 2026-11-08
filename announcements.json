@@ -1,0 +1,7 @@
+{
+  "id": 0,
+  "title": "Ame",
+  "message": "This is the announcements file served to the app. Raise \"id\" to 1 or higher and write the notice you want each device to see once.",
+  "action_url": null,
+  "action_label": null
+}

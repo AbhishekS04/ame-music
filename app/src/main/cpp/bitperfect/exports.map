@@ -1,0 +1,5 @@
+{
+    global:
+        Java_com_abhishek_ame_music_playback_audio_bitperfect_*;
+    local: *;
+};
