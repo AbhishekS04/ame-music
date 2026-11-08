@@ -90,6 +90,7 @@ fun TvSettingsScreen(
     val refreshRate by TvRefreshRateController.preference.collectAsState()
     val reduceMotion by AppSettings.reduceAnimation.collectAsState()
     val reduceTransparency by AppSettings.reduceDynamicBlur.collectAsState()
+    val automaticCrashReporting by AppSettings.automaticCrashReporting.collectAsState()
 
     var blurb by remember { mutableStateOf(DefaultBlurb) }
     var sheet by remember { mutableStateOf<SettingsSheet?>(null) }
@@ -340,6 +341,14 @@ fun TvSettingsScreen(
                         onClick = { sheet = SettingsSheet.Update },
                     )
                 }
+            }
+            item {
+                TvListRow(
+                    title = "Automatic Crash Reports",
+                    value = onOff(automaticCrashReporting),
+                    onFocused = { blurb = "Automatically sends crash reports via Sentry to help diagnose and fix bugs. Zero personal data or listening history is collected." },
+                    onClick = { AppSettings.setAutomaticCrashReporting(!automaticCrashReporting) },
+                )
             }
             item {
                 TvListRow(

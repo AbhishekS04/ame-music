@@ -1311,4 +1311,6 @@
     <string name="crash_report_message">Ame closed unexpectedly last time. Share a local report with the developer? It includes the app version, Android version, device model, stack trace and recent logs. Nothing is sent automatically.</string>
     <string name="crash_report_settings_subtitle">Share the last local crash log with the developer</string>
     <string name="crash_report_none">No crash report available</string>
+    <string name="automatic_crash_reporting_title" translatable="false">Automatic crash reports</string>
+    <string name="automatic_crash_reporting_subtitle" translatable="false">Send crash stack traces via Sentry to help diagnose and fix bugs. Zero personal data or listening history is collected.</string>
 </resources>

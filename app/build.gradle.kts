@@ -64,6 +64,12 @@ val announcementUrl: String = (
         ?: "https://raw.githubusercontent.com/AbhishekS04/ame-music/main/announcements.json"
     ).trim()
 
+val sentryDsn: String = (
+    localProps.getProperty("SENTRY_DSN")
+        ?: System.getenv("SENTRY_DSN")
+        ?: ""
+    ).trim()
+
 // See the root build.gradle.kts: one version for the phone app.
 val betaSuffix = rootProject.extra["ameBetaSuffix"] as String
 
@@ -99,6 +105,11 @@ android {
             "String",
             "ANNOUNCEMENT_URL",
             "\"${announcementUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"",
+        )
+        buildConfigField(
+            "String",
+            "SENTRY_DSN",
+            "\"${sentryDsn.replace("\\", "\\\\").replace("\"", "\\\"")}\"",
         )
     }
 
@@ -271,6 +282,9 @@ val newPipeExtractorStripped = tasks.register<org.gradle.api.tasks.bundling.Jar>
 dependencies {
     implementation(project(":shared"))
     implementation(project(":sharedUi"))
+
+    // Sentry Crash Reporting (Privacy-preserved, user-toggled)
+    implementation("io.sentry:sentry-android:8.63.0")
 
     // ---- Compose (Material 3) ----
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")

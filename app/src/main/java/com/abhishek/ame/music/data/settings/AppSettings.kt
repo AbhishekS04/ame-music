@@ -458,6 +458,9 @@ object AppSettings {
     /** Stop playback when the app is swiped away from the recent apps screen. */
     val stopOnTaskRemoved = MutableStateFlow(true)
 
+    /** Automatically send crash reports to Sentry. Enabled by default; user can turn off in Settings. */
+    val automaticCrashReporting = MutableStateFlow(true)
+
     /** Hides the volume slider on the main player, leaving the rest of the layout to reflow. */
     val hideVolumeBar = MutableStateFlow(false)
 
@@ -989,6 +992,7 @@ object AppSettings {
             prefs.getInt(KEY_PERFORMANCE_REFRESH_RATE, DEFAULT_PERFORMANCE_REFRESH_RATE),
         )
         stopOnTaskRemoved.value = prefs.getBoolean(KEY_STOP_ON_TASK_REMOVED, true)
+        automaticCrashReporting.value = prefs.getBoolean(KEY_AUTOMATIC_CRASH_REPORTING, true)
         hideVolumeBar.value = prefs.getBoolean(KEY_HIDE_VOLUME_BAR, false)
         hideStatusBarInPlayer.value = prefs.getBoolean(KEY_HIDE_STATUS_BAR_IN_PLAYER, false)
         hideSongStatus.value = prefs.getBoolean(KEY_HIDE_SONG_STATUS, false)
@@ -1384,6 +1388,11 @@ object AppSettings {
     fun setStopOnTaskRemoved(value: Boolean) {
         stopOnTaskRemoved.value = value
         prefs.edit().putBoolean(KEY_STOP_ON_TASK_REMOVED, value).apply()
+    }
+
+    fun setAutomaticCrashReporting(value: Boolean) {
+        automaticCrashReporting.value = value
+        prefs.edit().putBoolean(KEY_AUTOMATIC_CRASH_REPORTING, value).apply()
     }
 
     fun setHideVolumeBar(value: Boolean) {
@@ -2204,6 +2213,7 @@ object AppSettings {
     private const val KEY_HIGH_PERFORMANCE_MODE = "high_performance_mode"
     private const val KEY_PERFORMANCE_REFRESH_RATE = "performance_refresh_rate"
     private const val KEY_STOP_ON_TASK_REMOVED = "stop_on_task_removed"
+    private const val KEY_AUTOMATIC_CRASH_REPORTING = "automatic_crash_reporting"
     private const val KEY_HIDE_VOLUME_BAR = "hide_volume_bar"
     private const val KEY_HIDE_STATUS_BAR_IN_PLAYER = "hide_status_bar_in_player"
     private const val KEY_HIDE_SONG_STATUS = "hide_song_status"

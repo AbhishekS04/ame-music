@@ -43,6 +43,8 @@ import com.abhishek.ame.music.data.stats.ListeningStats
 import com.abhishek.ame.music.download.Downloads
 import com.abhishek.ame.music.download.PlaylistSync
 import androidx.work.Configuration
+import io.sentry.SentryOptions
+import io.sentry.android.core.SentryAndroid
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -144,6 +146,7 @@ class AmeApplication : Application(), SingletonImageLoader.Factory, Configuratio
             CoroutineScope(Dispatchers.IO).launch { Innertube.ensureSessionScope() }
         }
         AppSettings.init(this, authStore)
+        initSentry()
         // Before anything resolves a track: an addon with `checkValidLossless`
         // is gated on this, and the gate reads "no" until it has looked.
         com.abhishek.ame.music.playback.audio.LosslessOutput.init(this)
@@ -302,6 +305,26 @@ class AmeApplication : Application(), SingletonImageLoader.Factory, Configuratio
             secret = secret,
             sessionKey = sessionKey,
         )
+    }
+
+    private fun initSentry() {
+        val dsn = BuildConfig.SENTRY_DSN
+        if (dsn.isBlank()) return
+
+        SentryAndroid.init(this) { options ->
+            options.dsn = dsn
+            // Privacy first: strip PII and sensitive context
+            options.isSendDefaultPii = false
+            // Crash reporting only: disable performance profiling & tracing
+            options.tracesSampleRate = 0.0
+            options.isEnableUserInteractionTracing = false
+            options.isEnableUserInteractionBreadcrumbs = false
+            options.isEnableAutoSessionTracking = false
+            // Respect user choice: drop events if crash reporting is toggled off
+            options.beforeSend = SentryOptions.BeforeSendCallback { event, _ ->
+                if (AppSettings.automaticCrashReporting.value) event else null
+            }
+        }
     }
 
     companion object {

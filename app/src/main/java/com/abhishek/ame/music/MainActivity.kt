@@ -853,8 +853,15 @@ private fun AmeApp(
     var showUpdateDialog by remember { mutableStateOf(false) }
     val updateAvailable by viewModel.updateAvailable.collectAsStateWithLifecycle()
     val announcement by viewModel.announcement.collectAsStateWithLifecycle()
-    // Local only. The file is written by CrashReporter and never uploaded.
-    val pendingCrashReport = remember { CrashReporter.pending(context) }
+    // Local crash report prompt is only shown when Sentry is not configured or disabled by the user.
+    val pendingCrashReport = remember {
+        if (AppSettings.automaticCrashReporting.value && BuildConfig.SENTRY_DSN.isNotBlank()) {
+            CrashReporter.pending(context)?.let { CrashReporter.acknowledge(context, it) }
+            null
+        } else {
+            CrashReporter.pending(context)
+        }
+    }
     var showCrashReport by remember { mutableStateOf(pendingCrashReport != null) }
 
     /**
