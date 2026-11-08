@@ -175,7 +175,6 @@ import com.abhishek.ame.music.ui.navigation.AppRoute
 import com.abhishek.ame.music.ui.screens.EqualizerPresetPage
 import com.abhishek.ame.music.ui.screens.SettingsChoicePage
 import com.abhishek.ame.music.ui.components.SpotifyImportAlert
-import com.abhishek.ame.music.ui.screens.WearOsScreen
 import com.abhishek.ame.music.ui.screens.AccountAndScrobblingScreen
 import com.abhishek.ame.music.ui.screens.DiscordDialog
 import com.abhishek.ame.music.ui.screens.DiscordDialogHost
@@ -3054,8 +3053,6 @@ private fun AmeApp(
                                 onCleared = { navigator.pop() },
                                 contentPadding = listPadding,
                             )
-                        } else if (pageRoute == AppRoute.WearOs) {
-                            WearOsScreen(contentPadding = listPadding)
                         } else if (pageRoute == AppRoute.ListenTogether) {
                             ListenTogetherScreen(
                                 signedIn = signedIn,
@@ -3114,7 +3111,6 @@ private fun AmeApp(
                                 onTranslationLanguage = { showTranslationLanguage = true },
                                 onSources = { navigator.push(AppRoute.Sources) },
                                 onListenTogether = { navigator.push(AppRoute.ListenTogether) },
-                                onWearOs = { navigator.push(AppRoute.WearOs) },
                                 onSpotifyCanvasAuth = { showSpotifyCanvasAuth = true },
                                 onAppLanguage = { showAppLanguage = true },
                                 onEditSignatureApi = { editingSignatureApi = true },
@@ -3662,7 +3658,6 @@ private fun AmeApp(
                                 onTranslationLanguage = { showTranslationLanguage = true },
                                 onSources = { navigator.push(AppRoute.Sources) },
                                 onListenTogether = { navigator.push(AppRoute.ListenTogether) },
-                                onWearOs = { navigator.push(AppRoute.WearOs) },
                                 onSpotifyCanvasAuth = { showSpotifyCanvasAuth = true },
                                 onAppLanguage = { showAppLanguage = true },
                                 onEditSignatureApi = { editingSignatureApi = true },
@@ -3802,7 +3797,6 @@ private fun AmeApp(
                         AppRoute.AccountScrobbling -> stringResource(R.string.account_scrobbling)
                         AppRoute.Sources -> stringResource(R.string.sources)
                         AppRoute.ListenTogether -> stringResource(R.string.listen_together)
-                        AppRoute.WearOs -> stringResource(R.string.wear_os_page_title)
                         AppRoute.Equalizer -> stringResource(R.string.equalizer)
                         AppRoute.Settings -> stringResource(R.string.settings)
                         is AppRoute.SettingsSection -> stringResource(route.category.title)

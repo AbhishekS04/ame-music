@@ -24,7 +24,6 @@ in [README.md](README.md).
 ## Platform guides
 
 - [TV](tv/README.md)
-- [Wear OS](wearos/README.md)
 - [Web player and extension](web/README.md)
 
 ## Web internals

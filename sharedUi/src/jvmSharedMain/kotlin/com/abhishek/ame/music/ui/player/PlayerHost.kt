@@ -117,18 +117,6 @@ interface PlayerHost {
     /** Casting to a network receiver. Absent, and so never drawn, where the platform has none. */
     val castState: StateFlow<CastUi> get() = NoCast
 
-    /**
-     * The Ame watch app as an output: the watch plays the queue the way a
-     * Cast receiver does. Absent, and so never drawn, where there is no watch.
-     */
-    val watchOutput: StateFlow<WatchOutputUi> get() = NoWatch
-
-    /** The output drawer opening: look for a watch in reach again. */
-    fun refreshWatchOutput() = Unit
-
-    /** Make the watch the speaker. */
-    fun selectWatchOutput() = Unit
-
     /** The device picker the output drawer's Cast row opens, in the pipeline dialog's card. */
     @Composable
     fun CastDialog(hazeState: HazeState, onDismiss: () -> Unit) = Unit
@@ -194,18 +182,6 @@ internal fun MusicVideoSurface(
     onRenderedChanged: (Boolean) -> Unit = {},
 ) = PlayerPlatform.host.MusicVideo(videoId, fit, onRenderedChanged, modifier)
 
-private val NoWatch = MutableStateFlow(WatchOutputUi())
-
-/** What the output drawer needs to draw the watch's row. */
-data class WatchOutputUi(
-    /** A watch with Ame on it is in reach. False (and not [active]) hides the row. */
-    val available: Boolean = false,
-    /** What the watch calls itself; the drawer has a generic name for when it says nothing. */
-    val name: String? = null,
-    /** The watch is the speaker. */
-    val active: Boolean = false,
-)
-
 /** What the output drawer needs to know about casting to draw its row. */
 data class CastUi(
     /** Whether this device can cast at all. False hides the row. */
@@ -246,7 +222,7 @@ interface PlayerSettingsSource {
     val lyricsOffsetMs: StateFlow<Int>
     val lyricsSourceOrder: StateFlow<List<LyricsSource>>
     val meteredConnection: StateFlow<Boolean?>
-    /** A temporary cap over both ceilings, null when none applies — the watch's, on the phone. */
+    /** A temporary cap over both ceilings, null when none applies. */
     val streamCeilingOverride: StateFlow<AudioQuality?>
     val preferUsbDac: StateFlow<Boolean>
     val prioritizeSpotifyCanvas: StateFlow<Boolean>

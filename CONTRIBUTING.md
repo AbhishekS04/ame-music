@@ -61,11 +61,10 @@ Run a single test:
 
 On Windows use `gradlew.bat` in place of `./gradlew`.
 
-### Android TV and Wear OS
+### Android TV
 
 ```bash
 ./gradlew :tv:assembleDevDebug
-./gradlew :wearos:assembleDevDebug
 ```
 
 ### Web player and extension
@@ -139,8 +138,7 @@ The in-app updater finds assets by name, so keep this scheme when publishing:
 - TV universal: `ame-tv-<version>.apk`
 - TV per-ABI: `ame-tv-<version>_<abi>.apk`
 
-The watch APK is bundled inside the phone APK (`AmeWear.apk`) and does not need
-a release asset of its own.
+The phone APK is the primary release asset. TV assets use the `ame-tv-` prefix.
 
 ## Questions
 

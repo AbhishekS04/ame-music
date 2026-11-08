@@ -1,7 +1,6 @@
 package com.abhishek.ame.music.ui.screens
 
 import com.abhishek.ame.music.ui.icons.SfIcons
-import com.abhishek.ame.music.wear.WatchInstaller
 import android.content.Context
 import androidx.annotation.StringRes
 import android.content.Intent
@@ -202,7 +201,6 @@ fun SettingsScreen(
     onTranslationLanguage: () -> Unit,
     onSources: () -> Unit,
     onListenTogether: () -> Unit,
-    onWearOs: () -> Unit,
     onSpotifyCanvasAuth: () -> Unit,
     onAppLanguage: () -> Unit,
     onEditSignatureApi: () -> Unit,
@@ -416,7 +414,6 @@ fun SettingsScreen(
     val search = SettingsSearch(if (section == null) searchQuery else "", inPage = section != null)
     val searching = section == null && searchQuery.isNotBlank()
     fun shows(category: SettingsCategory) = section == category || searching
-    val watchAvailable = remember { WatchInstaller.available(context) }
 
     // What is left after a keystroke is a different list, and the offset the
     // last one was scrolled to means nothing in it.
@@ -575,11 +572,6 @@ fun SettingsScreen(
             // when their rows answer here instead (below).
             if (!searching) {
                 SettingsCategoryList(onOpen = onOpenSection)
-                if (watchAvailable) {
-                    SettingsGroup {
-                        WearOsSettingsRow(onClick = onWearOs)
-                    }
-                }
             }
         }
 
@@ -1297,17 +1289,6 @@ fun SettingsScreen(
                         Toast.makeText(context, context.getString(R.string.image_cache_cleared), Toast.LENGTH_SHORT).show()
                     },
                 )
-            }
-        }
-
-        // Only in a build that carries the watch app — see app/build.gradle.kts.
-        // On the main page it is listed with the categories; here it answers
-        // a search.
-        if (searching && watchAvailable) {
-            SearchableSettingsGroup(search) {
-                row(stringResource(R.string.wear_os_section), "watch", "wear os", "galaxy watch", "pixel watch", "install") {
-                    WearOsSettingsRow(onClick = onWearOs)
-                }
             }
         }
 

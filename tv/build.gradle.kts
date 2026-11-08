@@ -52,6 +52,14 @@ val listenTogetherServer: String = (
         ?: ""
     ).trim().trimEnd('/')
 
+// The TV app compiles the same announcement reader as the phone app, so its
+// BuildConfig needs the same public URL.
+val announcementUrl: String = (
+    localProps.getProperty("ANNOUNCEMENT_URL")
+        ?: System.getenv("ANNOUNCEMENT_URL")
+        ?: "https://raw.githubusercontent.com/AbhishekS04/ame-music/main/announcements.json"
+    ).trim()
+
 /*
  * Bump this by hand before cutting each sideloaded test build ("beta2",
  * "beta3", ...) and blank it out before cutting the real release. Marks the
@@ -100,6 +108,11 @@ android {
         // the TV app here, never the phone app. See
         // AppUpdateChecker.apkAssetUrl.
         buildConfigField("String", "UPDATE_APK_PREFIX", "\"ame-tv-\"")
+        buildConfigField(
+            "String",
+            "ANNOUNCEMENT_URL",
+            "\"${announcementUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"",
+        )
     }
 
     splits {

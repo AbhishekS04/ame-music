@@ -33,17 +33,13 @@ buildscript {
     }
 }
 /*
- * The version of the phone app and of the watch app that ships inside it, in
- * one place. The watch has to move with the phone: it is installed and updated
- * from the phone's own APK (see app/build.gradle.kts), and Android refuses an
- * update whose versionCode is lower than the one installed.
+ * The version of the phone app, in one place.
  *
  * No "v" in the name — the in-app updater reads it as a number; the "v" is the
  * release tag's alone.
  */
 extra["ameVersionCode"] = 1
-extra["ameVersionName"] = "1.0.0"
-extra["ameBetaSuffix"] = ""
+extra["ameVersionName"] = "0.1.0"
 
 /*
  * Bump this by hand before cutting each sideloaded test build ("beta2",
@@ -59,10 +55,6 @@ extra["ameBetaSuffix"] = ""
  * the published 1.6.1 then matches it, isNewer() says no, and no prompt ever
  * comes. Blanking this line is the one step that turns a beta into a release,
  * so it is the one place to get right.
- *
- * The watch app carries the same marker. It needs no prompt logic of its own:
- * the phone compares the watch's installed APK with the one it carries, so a
- * beta watch app shows "Update available" as soon as the phone has the release.
  */
 extra["ameBetaSuffix"] = ""
 

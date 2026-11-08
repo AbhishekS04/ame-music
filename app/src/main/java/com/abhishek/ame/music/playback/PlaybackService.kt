@@ -151,7 +151,6 @@ import com.abhishek.ame.music.playback.smart.AutomixAnalysisSource
 import com.abhishek.ame.music.playback.smart.VersionAudioAligner
 import com.abhishek.ame.music.widget.MediaWidget
 import com.abhishek.ame.music.widget.MediaWidgetSnapshot
-import com.abhishek.ame.music.wear.WearBridge
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -211,9 +210,6 @@ const val ACTION_SWAP_VERSION = "com.abhishek.ame.music.action.SWAP_VERSION"
 const val EXTRA_SWAP_MEDIA_ITEM = "ame.swap.media_item"
 
 /** Session command used by the media notification's and the 4×1 widget's Favorite button. */
-/** How long the service may stay in the foreground, paused, while the watch plays. */
-private const val WATCH_SESSION_FOREGROUND_MS = 6 * 60 * 60 * 1000L
-
 const val ACTION_TOGGLE_FAVORITE = "com.abhishek.ame.music.action.TOGGLE_FAVORITE"
 
 /** Session command used by the media notification's and the 4×1 widget's Shuffle button. */
@@ -757,17 +753,8 @@ class PlaybackService : MediaLibraryService() {
         say = { message -> Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show() },
     )
 
-    /**
-     * The Ame watch app as the speaker — the same model as Cast: the phone
-     * keeps the queue paused, the watch plays it and owns the clock. See
-     * [WearBridge.createSpeaker].
-     */
-    private val watchSpeaker by lazy {
-        WearBridge.createSpeaker(this, scope, localPlayer = { player }, onChanged = { publishWidgetState() })
-    }
-
     /** Every remote speaker, as the one the session player reports. */
-    private val speakers by lazy { Speakers(listOf(castPlayback, watchSpeaker)) }
+    private val speakers by lazy { Speakers(listOf(castPlayback)) }
 
     /**
      * Binds playback to a Listen Together party, when there is one.
@@ -977,9 +964,6 @@ class PlaybackService : MediaLibraryService() {
                 lastSeekAt = SystemClock.elapsedRealtime()
                 if (exoPlayer.isPlaying) pushDiscordPresence(exoPlayer)
                 updateLyricSubtitle()
-                // The watch extrapolates its progress ring from the last
-                // position it was given, the same way Discord does.
-                WearBridge.republish(this@PlaybackService, exoPlayer)
             }
         }
 
@@ -1095,7 +1079,6 @@ class PlaybackService : MediaLibraryService() {
             val previous = lastRepeatMode
             lastRepeatMode = repeatMode
             speakers.onLocalRepeatChanged(repeatMode)
-            player?.let { WearBridge.republish(this@PlaybackService, it) }
             // Repeat-one makes the "next" track this one again.
             player?.let { activeLoudness().nextMediaId = nextMediaIdOf(it) }
             // Repeat-all loops the queue as it stands; AutoPlay's tracks are the
@@ -1321,17 +1304,6 @@ class PlaybackService : MediaLibraryService() {
                     refreshCustomLayouts()
                     publishWidgetState()
                 }
-        }
-        // While the watch is the speaker this process serves its audio, and a
-        // paused service drops out of the foreground after ten minutes — after
-        // which Android may freeze the process mid-stream. Held up for the
-        // length of the session instead.
-        scope.launch {
-            WearBridge.watchSession.collect { onWatch ->
-                setForegroundServiceTimeoutMs(
-                    if (onWatch) WATCH_SESSION_FOREGROUND_MS else DEFAULT_FOREGROUND_SERVICE_TIMEOUT_MS,
-                )
-            }
         }
         // Signing in or out adds or removes Like everywhere at once.
         scope.launch {
@@ -1755,9 +1727,6 @@ class PlaybackService : MediaLibraryService() {
             DsdExtractorsFactory(),
         )
             .setLoadErrorHandlingPolicy(PermanentAwareLoadErrorPolicy())
-        // The watch, when it is the speaker, reads tracks through this same chain.
-        WearBridge.attachStreams(AudioCache.playbackFactory(defaultDataSourceFactory))
-
         configuredFloatOutput = shouldEnableFloatOutput()
         val exoPlayer = buildPlayer(
             spatialAudioProcessorA,
@@ -6278,8 +6247,8 @@ class PlaybackService : MediaLibraryService() {
             artist = song.artist,
             artworkUrl = song.thumbnailUrl,
             // playWhenReady, not isPlaying — see MediaWidgetSnapshot.isPlaying.
-            // Through the session player, which answers for Cast or the watch
-            // while one of them is the speaker.
+            // Through the session player, which answers for Cast while it is
+            // the speaker.
             isPlaying = playing ?: reported.playWhenReady,
             hasPrevious = exoPlayer.hasPreviousMediaItem(),
             hasNext = exoPlayer.hasNextMediaItem(),
@@ -6289,8 +6258,6 @@ class PlaybackService : MediaLibraryService() {
         )
         MediaWidgetSnapshot.save(this, snapshot)
         MediaWidget.refresh(this)
-        // The watch app follows the widget — same moments, same snapshot.
-        WearBridge.publish(this, snapshot, reported, playing)
     }
 
     private var foreignCachePurgeJob: Job? = null
@@ -7626,8 +7593,6 @@ class PlaybackService : MediaLibraryService() {
 
 
     override fun onDestroy() {
-        WearBridge.attachStreams(null)
-        WearBridge.releaseSpeaker()
         // Let go of the receiver's player but leave its session alone: a
         // service that idles out while casting is not the listener choosing to
         // stop, and the next one picks the session up where it was.

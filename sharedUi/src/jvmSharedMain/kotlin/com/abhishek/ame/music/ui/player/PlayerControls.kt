@@ -67,7 +67,6 @@ import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Tv
-import androidx.compose.material.icons.rounded.Watch
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -986,17 +985,15 @@ private fun OutputPartyPill(
  * Apple Music's AirPlay button does — the phone, buds, a speaker — rather than
  * headphones whatever is actually playing it.
  *
- * Off-device first: while casting or on the watch, the phone's own route is
- * not where anybody is listening.
+ * Off-device first: while casting, the phone's own route is not where anybody
+ * is listening.
  */
 @Composable
 private fun rememberOutputGlyph(): OutputGlyph {
     val cast by PlayerPlatform.host.castState.collectAsStateWithLifecycle()
-    val watch by PlayerPlatform.host.watchOutput.collectAsStateWithLifecycle()
     val active = rememberAudioOutputs().firstOrNull { it.isActive }
     return when {
         cast.connectedName != null -> OutputGlyph(Icons.Rounded.CastConnected, PILL_OUTPUT_WIDE_SIZE)
-        watch.active -> OutputGlyph(Icons.Rounded.Watch, PILL_OUTPUT_TALL_SIZE)
         else -> when (active?.kind) {
             // No active row is the phone too — the caption under the pill
             // says "This phone" in the same case. Cast rather than a phone:
