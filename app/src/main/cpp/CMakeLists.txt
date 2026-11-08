@@ -83,7 +83,9 @@ target_link_options(ame_dst PRIVATE "-Wl,-z,max-page-size=16384")
 include(FetchContent)
 set(OBOE_DISABLE_CONVERSION ON CACHE BOOL "" FORCE)
 FetchContent_Declare(oboe
-    URL https://github.com/google/oboe/archive/refs/tags/1.11.0.tar.gz
+    URL
+        https://codeload.github.com/google/oboe/tar.gz/refs/tags/1.11.0
+        https://github.com/google/oboe/archive/refs/tags/1.11.0.tar.gz
     URL_HASH SHA256=0ccf2110640a2b4489f1c93a404f2978656b434d8c5dc9cb6258f9cc95c79b15)
 FetchContent_MakeAvailable(oboe)
 
