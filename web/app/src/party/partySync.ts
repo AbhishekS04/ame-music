@@ -1,4 +1,6 @@
+import { fetchRadio } from '@/data/music/api';
 import type { Track } from '@/data/music/types';
+import { extendStation } from '@/playback/queue/builder';
 import type { QueueTier } from '@/playback/queue/timeline';
 import { getAudio, partyPlayer, setPartyHooks, usePlayer } from '@/state/player';
 import { controlsLocked, msUntilStart, party, partyPositionMs, useParty, type PartyState } from './listenTogether';
@@ -401,7 +403,6 @@ function maybeTopUpAutoplay(): void {
   autoplaySeed = playing.videoId;
   topping = (async () => {
     try {
-      const [{ fetchRadio }, { extendStation }] = await Promise.all([import('@/data/music/api'), import('@/playback/queue/builder')]);
       const { candidates, seedIsVideo } = await fetchRadio(playing.videoId);
       const latest = useParty.getState();
       if (latest.playback.track?.videoId !== playing.videoId) return;
