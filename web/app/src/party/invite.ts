@@ -1,10 +1,10 @@
 /**
- * Party invites (JamInviteLink.kt): `https://ame-music.vercel.app/invite/<CODE>`,
+ * Party invites (JamInviteLink.kt): `https://amemusic.vercel.app/invite/<CODE>`,
  * optionally `?server=<custom server>`, and `ame://party/<CODE>`. On the
  * web the first is a route of this app (`/invite/:code`).
  */
 
-export const INVITE_ORIGIN = 'https://ame-music.vercel.app';
+export const INVITE_ORIGIN = 'https://amemusic.vercel.app';
 export const CODE_LENGTH = 6;
 
 /** Letters and digits only, upper case; null unless it's six of them. */

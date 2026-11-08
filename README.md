@@ -98,7 +98,7 @@ Grab the latest signed APK from the [Releases](https://github.com/AbhishekS04/am
 
 <h1><a id="web--extension"></a>Web &amp; Extension</h1>
 
-The companion web player lives at **[ame-music.vercel.app](https://ame-music.vercel.app)**. Install the browser extension from the web player's Extension page to unlock YouTube Music playback, Spotify import and Discord Rich Presence in the browser.
+The companion web player lives at **[amemusic.vercel.app](https://amemusic.vercel.app)**. Install the browser extension from the web player's Extension page to unlock YouTube Music playback, Spotify import and Discord Rich Presence in the browser.
 
 </div>
 

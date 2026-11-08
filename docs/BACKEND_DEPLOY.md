@@ -44,7 +44,7 @@ Environment variables:
 | Variable | Value | Why |
 |---|---|---|
 | `JAM_TRUST_PROXY` | `true` | Render terminates TLS; this trusts `X-Forwarded-For`. |
-| `JAM_ALLOWED_ORIGINS` | `https://ame-music.vercel.app` | The web player's browser origin. Native apps send no Origin. |
+| `JAM_ALLOWED_ORIGINS` | `https://amemusic.vercel.app` | The web player's browser origin. Native apps send no Origin. |
 | `JAM_PUBLIC_ORIGIN` | `https://<service>.onrender.com` | Optional. Only needed if invite deep links report the wrong host; leave unset to auto-detect. |
 
 The other `JAM_*` values have safe defaults; see
@@ -77,7 +77,7 @@ always-on free tier.
 3. Build command: `go build -o server .`
 4. Start command: `./server`
 5. Add the same environment variables as Render (`JAM_TRUST_PROXY=true`,
-   `JAM_ALLOWED_ORIGINS=https://ame-music.vercel.app`).
+   `JAM_ALLOWED_ORIGINS=https://amemusic.vercel.app`).
 6. **Settings → Networking → Generate Domain** to get a public HTTPS URL.
 7. Keep the service at one replica.
 

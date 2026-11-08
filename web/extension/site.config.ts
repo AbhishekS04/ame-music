@@ -1,5 +1,5 @@
 /** The web player's production origin. */
-export const PRODUCTION_ORIGIN = 'https://ame-music.vercel.app';
+export const PRODUCTION_ORIGIN = 'https://amemusic.vercel.app';
 
 /** The Vite dev server (web/app/vite.config.ts pins the port). */
 const DEV_ORIGIN = 'http://localhost:5173';
@@ -9,7 +9,7 @@ const DEV_ORIGIN = 'http://localhost:5173';
  * this list, and it becomes externally_connectable (Chromium), the relay's
  * content-script matches (Firefox) and the DNR rules' initiatorDomains.
  *
- * ame-music.vercel.app always, and the dev server too except in a store build
+ * amemusic.vercel.app always, and the dev server too except in a store build
  * (AME_STORE_BUILD=1), so a published extension never answers a page on
  * localhost. AME_SITE_ORIGINS (comma-separated) replaces the list. The
  * first origin is the one the popup and homepage_url link to.

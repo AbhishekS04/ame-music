@@ -58,7 +58,7 @@ export default defineConfig({
       ? {
           browser_specific_settings: {
             gecko: {
-              id: 'extension@ame-music.vercel.app',
+              id: 'extension@amemusic.vercel.app',
               strict_min_version: '128.0',
               data_collection_permissions: { required: ['none'] },
             },

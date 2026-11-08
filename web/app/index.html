@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <script>
-      // The extension trusts https://ame-music.vercel.app only (web/extension/site.config.ts),
+      // The extension trusts https://amemusic.vercel.app only (web/extension/site.config.ts),
       // so www goes there before anything loads, keeping its path and query.
-      if (location.hostname === 'www.ame-music.vercel.app') location.replace('https://ame-music.vercel.app' + location.pathname + location.search + location.hash);
+      if (location.hostname === 'www.amemusic.vercel.app') location.replace('https://amemusic.vercel.app' + location.pathname + location.search + location.hash);
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />

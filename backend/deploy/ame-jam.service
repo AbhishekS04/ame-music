@@ -20,9 +20,9 @@ Environment=JAM_MAX_PARTIES=200
 Environment=JAM_CREATE_RATE_PER_MINUTE=2
 Environment=JAM_CONNECTION_IDLE_MS=900000
 # Browser origins the web player runs on (no wildcards; see config.IsAllowedOrigin).
-Environment=JAM_ALLOWED_ORIGINS=https://ame-music.vercel.app,http://localhost:5173
+Environment=JAM_ALLOWED_ORIGINS=https://amemusic.vercel.app,http://localhost:5173
 # Origin used verbatim in invite links.
-Environment=JAM_PUBLIC_ORIGIN=https://ame-music.vercel.app
+Environment=JAM_PUBLIC_ORIGIN=https://amemusic.vercel.app
 
 NoNewPrivileges=true
 ProtectSystem=strict

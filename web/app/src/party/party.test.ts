@@ -113,14 +113,14 @@ describe('AutoPlay supplier', () => {
 
 describe('invites', () => {
   it('reads both link shapes and normalises the code', () => {
-    expect(parseInvite('https://ame-music.vercel.app/invite/ab12cd')).toEqual({ code: 'AB12CD', serverUrl: null });
+    expect(parseInvite('https://amemusic.vercel.app/invite/ab12cd')).toEqual({ code: 'AB12CD', serverUrl: null });
     expect(parseInvite('ame://party/AB12CD?server=jam.example.com')).toEqual({ code: 'AB12CD', serverUrl: 'https://jam.example.com' });
     expect(parseInvite('https://example.com/nope')).toBeNull();
     expect(cleanCode(' ab-12 cd ')).toBe('AB12CD');
   });
 
   it('links to a custom server’s own invite page', () => {
-    expect(inviteUrl('ab12cd', null)).toBe('https://ame-music.vercel.app/invite/AB12CD');
+    expect(inviteUrl('ab12cd', null)).toBe('https://amemusic.vercel.app/invite/AB12CD');
     expect(inviteUrl('AB12CD', 'https://jam.example.com/')).toBe('https://jam.example.com/invite/AB12CD');
   });
 });

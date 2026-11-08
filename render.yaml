@@ -36,4 +36,4 @@ services:
       # The browser player's origin. Native apps send no Origin and are always
       # accepted. Add another origin here, comma-separated, for a custom domain.
       - key: JAM_ALLOWED_ORIGINS
-        value: https://ame-music.vercel.app
+        value: https://amemusic.vercel.app
