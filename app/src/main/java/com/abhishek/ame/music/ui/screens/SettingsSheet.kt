@@ -281,6 +281,7 @@ fun SettingsScreen(
     val exportDownloads by AppSettings.exportDownloads.collectAsStateWithLifecycle()
     val syncDownloadedPlaylists by AppSettings.syncDownloadedPlaylists.collectAsStateWithLifecycle()
     val stopOnTaskRemoved by AppSettings.stopOnTaskRemoved.collectAsStateWithLifecycle()
+    val automaticCrashReporting by AppSettings.automaticCrashReporting.collectAsStateWithLifecycle()
     val hideVolumeBar by AppSettings.hideVolumeBar.collectAsStateWithLifecycle()
     val hideStatusBarInPlayer by AppSettings.hideStatusBarInPlayer.collectAsStateWithLifecycle()
     val hideSongStatus by AppSettings.hideSongStatus.collectAsStateWithLifecycle()
@@ -1345,6 +1346,21 @@ fun SettingsScreen(
         // No footer: it only restated the stop-on-close row's own subtitle,
         // which sits four rows above it and says the same thing in fewer words.
         if (shows(SettingsCategory.MISCELLANEOUS)) SearchableSettingsGroup(search, header = stringResource(R.string.miscellaneous)) {
+            val autoCrashReportTitle = stringResource(R.string.automatic_crash_reporting_title)
+            row(autoCrashReportTitle, "crash", "sentry", "report", "bug", "diagnostics") {
+                SettingsRow(
+                    icon = SfIcons.Bug,
+                    title = autoCrashReportTitle,
+                    subtitle = stringResource(R.string.automatic_crash_reporting_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = automaticCrashReporting,
+                            onCheckedChange = AppSettings::setAutomaticCrashReporting,
+                        )
+                    },
+                    onClick = { AppSettings.setAutomaticCrashReporting(!automaticCrashReporting) },
+                )
+            }
             val crashReportTitle = stringResource(R.string.crash_report_title)
             row(crashReportTitle, "crash", "log", "report", "bug", "diagnostics") {
                 SettingsRow(

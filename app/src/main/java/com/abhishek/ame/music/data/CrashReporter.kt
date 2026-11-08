@@ -231,8 +231,6 @@ object CrashReporter {
             ApplicationExitInfo.REASON_CRASH,
             ApplicationExitInfo.REASON_CRASH_NATIVE,
             ApplicationExitInfo.REASON_ANR,
-            ApplicationExitInfo.REASON_LOW_MEMORY,
-            ApplicationExitInfo.REASON_SIGNALED,
         )
 
         private fun reasonName(reason: Int): String = when (reason) {

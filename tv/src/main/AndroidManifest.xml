@@ -86,6 +86,11 @@
         android:theme="@style/Theme.Ame"
         tools:targetApi="34">
 
+        <!-- Disable automatic Sentry initialization so privacy guards and user toggle in AmeApplication control startup -->
+        <meta-data
+            android:name="io.sentry.auto-init"
+            android:value="false" />
+
         <!--
           One UI 7+ only routes an app's ongoing notification to Live
           Notifications / the Now Bar if the app opts in here. Ignored by every

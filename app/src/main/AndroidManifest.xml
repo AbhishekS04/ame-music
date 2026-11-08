@@ -75,6 +75,11 @@
         android:theme="@style/Theme.Ame"
         tools:targetApi="34">
 
+        <!-- Disable automatic Sentry initialization so privacy guards and user toggle in AmeApplication control startup -->
+        <meta-data
+            android:name="io.sentry.auto-init"
+            android:value="false" />
+
         <!--
           Lets a release build be sampled with simpleperf or Perfetto from adb,
           so jank is measured on the build users get rather than on a debug
