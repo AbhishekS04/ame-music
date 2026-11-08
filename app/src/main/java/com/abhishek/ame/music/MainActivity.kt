@@ -135,6 +135,7 @@ import com.abhishek.ame.music.auth.WebSessionMode
 import com.abhishek.ame.music.auth.YtMusicLoginScreen
 import com.abhishek.ame.music.data.Announcements
 import com.abhishek.ame.music.data.AppUpdateChecker
+import com.abhishek.ame.music.data.CrashReporter
 import com.abhishek.ame.music.data.LocalMediaRepository
 import com.abhishek.ame.music.data.listentogether.JamInviteLink
 import com.abhishek.ame.music.data.listentogether.ListenTogether
@@ -852,6 +853,9 @@ private fun AmeApp(
     var showUpdateDialog by remember { mutableStateOf(false) }
     val updateAvailable by viewModel.updateAvailable.collectAsStateWithLifecycle()
     val announcement by viewModel.announcement.collectAsStateWithLifecycle()
+    // Local only. The file is written by CrashReporter and never uploaded.
+    val pendingCrashReport = remember { CrashReporter.pending(context) }
+    var showCrashReport by remember { mutableStateOf(pendingCrashReport != null) }
 
     /**
      * The single gate both surfaces read, so the icon can't announce the update
@@ -3111,6 +3115,18 @@ private fun AmeApp(
                                 onTranslationLanguage = { showTranslationLanguage = true },
                                 onSources = { navigator.push(AppRoute.Sources) },
                                 onListenTogether = { navigator.push(AppRoute.ListenTogether) },
+                                onShareCrashReport = {
+                                    val report = CrashReporter.latest(context)
+                                    if (report == null) {
+                                        Toast.makeText(
+                                            context,
+                                            R.string.crash_report_none,
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    } else {
+                                        CrashReporter.share(context, report)
+                                    }
+                                },
                                 onSpotifyCanvasAuth = { showSpotifyCanvasAuth = true },
                                 onAppLanguage = { showAppLanguage = true },
                                 onEditSignatureApi = { editingSignatureApi = true },
@@ -3658,6 +3674,18 @@ private fun AmeApp(
                                 onTranslationLanguage = { showTranslationLanguage = true },
                                 onSources = { navigator.push(AppRoute.Sources) },
                                 onListenTogether = { navigator.push(AppRoute.ListenTogether) },
+                                onShareCrashReport = {
+                                    val report = CrashReporter.latest(context)
+                                    if (report == null) {
+                                        Toast.makeText(
+                                            context,
+                                            R.string.crash_report_none,
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    } else {
+                                        CrashReporter.share(context, report)
+                                    }
+                                },
                                 onSpotifyCanvasAuth = { showSpotifyCanvasAuth = true },
                                 onAppLanguage = { showAppLanguage = true },
                                 onEditSignatureApi = { editingSignatureApi = true },
@@ -5459,6 +5487,28 @@ private fun AmeApp(
                     // Opening the link is also an acknowledgement, so a device
                     // that tapped it is never shown the same notice again.
                     Announcements.dismiss(notice)
+                },
+            )
+        }
+
+        // ---- Local crash report (shared only if the listener chooses) ----
+        val crashReport = pendingCrashReport
+        if (showCrashReport && crashReport != null && onboardingComplete &&
+            !showUpdateDialog && announcement == null
+        ) {
+            ConfirmationAlert(
+                hazeState = hazeState,
+                title = stringResource(R.string.crash_report_title),
+                description = stringResource(R.string.crash_report_message),
+                confirmLabel = stringResource(R.string.share),
+                onConfirm = {
+                    CrashReporter.share(context, crashReport)
+                    CrashReporter.acknowledge(context, crashReport)
+                    showCrashReport = false
+                },
+                onDismiss = {
+                    CrashReporter.acknowledge(context, crashReport)
+                    showCrashReport = false
                 },
             )
         }

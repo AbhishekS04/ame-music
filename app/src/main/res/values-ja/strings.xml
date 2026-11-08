@@ -1421,4 +1421,8 @@
     <string name="announcement_ok">OK</string>
     <string name="announcement_open">開く</string>
     <string name="sources_no_addons_footer">アドオンはデフォルトでは追加されません。「アドオンを追加」をタップして、信頼できるリンクを貼り付けてください。</string>
+    <string name="crash_report_title">クラッシュレポート</string>
+    <string name="crash_report_message">前回 Ame が予期せず終了しました。ローカルレポートを開発者と共有しますか？アプリのバージョン、Android のバージョン、デバイスのモデル、スタックトレース、最近のログが含まれます。自動では何も送信されません。</string>
+    <string name="crash_report_settings_subtitle">最後のローカルクラッシュログを開発者と共有</string>
+    <string name="crash_report_none">クラッシュレポートはありません</string>
 </resources>

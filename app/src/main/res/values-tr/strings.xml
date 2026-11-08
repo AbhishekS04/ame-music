@@ -1400,4 +1400,8 @@
     <string name="announcement_ok">Tamam</string>
     <string name="announcement_open">Aç</string>
     <string name="sources_no_addons_footer">Varsayılan olarak hiçbir eklenti eklenmez. “Eklenti ekle”ye dokunun ve güvendiğiniz bir bağlantıyı yapıştırın.</string>
+    <string name="crash_report_title">Çökme raporu</string>
+    <string name="crash_report_message">Ame geçen sefer beklenmedik şekilde kapandı. Yerel raporu geliştiriciyle paylaşmak ister misiniz? Uygulama sürümü, Android sürümü, cihaz modeli, yığın izi ve son günlükleri içerir. Hiçbir şey otomatik olarak gönderilmez.</string>
+    <string name="crash_report_settings_subtitle">Son yerel çökme günlüğünü geliştiriciyle paylaş</string>
+    <string name="crash_report_none">Kullanılabilir çökme raporu yok</string>
 </resources>

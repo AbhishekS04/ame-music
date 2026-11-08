@@ -1448,4 +1448,8 @@
     <string name="announcement_ok">אישור</string>
     <string name="announcement_open">פתח</string>
     <string name="sources_no_addons_footer">לא מתווספים תוספים כברירת מחדל. הקש על „הוסף תוסף“ והדבק קישור שאתה סומך עליו.</string>
+    <string name="crash_report_title">דוח קריסה</string>
+    <string name="crash_report_message">Ame נסגרה באופן בלתי צפוי בפעם האחרונה. לשתף דוח מקומי עם המפתח? הוא כולל את גרסת האפליקציה, גרסת Android, דגם המכשיר, עקבות מחסנית ויומנים אחרונים. שום דבר לא נשלח אוטומטית.</string>
+    <string name="crash_report_settings_subtitle">שתף את יומן הקריסה המקומי האחרון עם המפתח</string>
+    <string name="crash_report_none">אין דוח קריסה זמין</string>
 </resources>

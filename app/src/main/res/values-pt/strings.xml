@@ -1448,4 +1448,8 @@
     <string name="announcement_ok">OK</string>
     <string name="announcement_open">Abrir</string>
     <string name="sources_no_addons_footer">Nenhum complemento é adicionado por padrão. Toque em «Adicionar um complemento» e cole um link confiável.</string>
+    <string name="crash_report_title">Relatório de falha</string>
+    <string name="crash_report_message">O Ame foi fechado inesperadamente da última vez. Compartilhar um relatório local com o desenvolvedor? Ele inclui a versão do app, a versão do Android, o modelo do dispositivo, a pilha de chamadas e os registros recentes. Nada é enviado automaticamente.</string>
+    <string name="crash_report_settings_subtitle">Compartilhar o último registro local de falha com o desenvolvedor</string>
+    <string name="crash_report_none">Nenhum relatório de falha disponível</string>
 </resources>

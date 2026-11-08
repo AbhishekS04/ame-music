@@ -13,4 +13,6 @@
 <paths>
     <cache-path name="shared" path="shared/" />
     <cache-path name="updates" path="updates/" />
+    <!-- Crash reports are shared only when the listener chooses Share. -->
+    <files-path name="crash_reports" path="crash-reports/" />
 </paths>

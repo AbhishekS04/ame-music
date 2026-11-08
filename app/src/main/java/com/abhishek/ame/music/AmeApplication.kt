@@ -58,6 +58,8 @@ class AmeApplication : Application(), SingletonImageLoader.Factory, Configuratio
     @kotlin.OptIn(ExperimentalComposeUiApi::class)
     override fun onCreate() {
         super.onCreate()
+        // Local only: writes a report on crash, never uploads it.
+        com.abhishek.ame.music.data.CrashReporter.install(this)
         // The player is drawn by the shared UI module; this is what it reads
         // underneath — settings, the Canvas decoder, outputs, the party.
         AndroidStreamHooks.installEarly()

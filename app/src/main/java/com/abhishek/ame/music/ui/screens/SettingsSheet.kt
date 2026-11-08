@@ -201,6 +201,7 @@ fun SettingsScreen(
     onTranslationLanguage: () -> Unit,
     onSources: () -> Unit,
     onListenTogether: () -> Unit,
+    onShareCrashReport: () -> Unit,
     onSpotifyCanvasAuth: () -> Unit,
     onAppLanguage: () -> Unit,
     onEditSignatureApi: () -> Unit,
@@ -1344,6 +1345,15 @@ fun SettingsScreen(
         // No footer: it only restated the stop-on-close row's own subtitle,
         // which sits four rows above it and says the same thing in fewer words.
         if (shows(SettingsCategory.MISCELLANEOUS)) SearchableSettingsGroup(search, header = stringResource(R.string.miscellaneous)) {
+            val crashReportTitle = stringResource(R.string.crash_report_title)
+            row(crashReportTitle, "crash", "log", "report", "bug", "diagnostics") {
+                SettingsRow(
+                    icon = SfIcons.ErrorOutline,
+                    title = crashReportTitle,
+                    subtitle = stringResource(R.string.crash_report_settings_subtitle),
+                    onClick = onShareCrashReport,
+                )
+            }
             val playNextOnSwipeTitle = stringResource(R.string.play_next_on_swipe)
             row(playNextOnSwipeTitle, "swipe", "queue") {
                 SettingsRow(

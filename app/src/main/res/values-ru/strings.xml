@@ -1475,4 +1475,8 @@
     <string name="announcement_ok">ОК</string>
     <string name="announcement_open">Открыть</string>
     <string name="sources_no_addons_footer">По умолчанию дополнения не добавляются. Нажмите «Добавить дополнение» и вставьте ссылку, которой доверяете.</string>
+    <string name="crash_report_title">Отчёт о сбое</string>
+    <string name="crash_report_message">В прошлый раз Ame неожиданно закрылось. Поделиться локальным отчётом с разработчиком? Он содержит версию приложения, версию Android, модель устройства, трассировку стека и последние журналы. Ничего не отправляется автоматически.</string>
+    <string name="crash_report_settings_subtitle">Поделиться последним локальным журналом сбоя с разработчиком</string>
+    <string name="crash_report_none">Отчёт о сбое недоступен</string>
 </resources>

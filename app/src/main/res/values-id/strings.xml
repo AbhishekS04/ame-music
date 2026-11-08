@@ -1420,4 +1420,8 @@
     <string name="announcement_ok">OK</string>
     <string name="announcement_open">Buka</string>
     <string name="sources_no_addons_footer">Tidak ada addon yang ditambahkan secara default. Ketuk “Tambahkan addon” dan tempel tautan yang Anda percaya.</string>
+    <string name="crash_report_title">Laporan crash</string>
+    <string name="crash_report_message">Ame ditutup secara tak terduga terakhir kali. Bagikan laporan lokal dengan pengembang? Laporan berisi versi aplikasi, versi Android, model perangkat, jejak tumpukan, dan log terbaru. Tidak ada yang dikirim secara otomatis.</string>
+    <string name="crash_report_settings_subtitle">Bagikan log crash lokal terakhir dengan pengembang</string>
+    <string name="crash_report_none">Tidak ada laporan crash</string>
 </resources>

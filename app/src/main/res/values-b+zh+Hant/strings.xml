@@ -1420,4 +1420,8 @@
     <string name="announcement_ok">確定</string>
     <string name="announcement_open">開啟</string>
     <string name="sources_no_addons_footer">預設不會新增任何附加元件。點一下「新增附加元件」，然後貼上你信任的連結。</string>
+    <string name="crash_report_title">當機報告</string>
+    <string name="crash_report_message">上次 Ame 意外關閉。要與開發者分享本機報告嗎？報告包含應用程式版本、Android 版本、裝置型號、堆疊追蹤和近期日誌。不會自動傳送任何內容。</string>
+    <string name="crash_report_settings_subtitle">與開發者分享最近的當機日誌</string>
+    <string name="crash_report_none">沒有可用的當機報告</string>
 </resources>

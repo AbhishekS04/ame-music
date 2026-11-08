@@ -1483,4 +1483,8 @@
     <string name="announcement_ok">OK</string>
     <string name="announcement_open">Otwórz</string>
     <string name="sources_no_addons_footer">Domyślnie nie dodano żadnych dodatków. Dotknij „Dodaj dodatek” i wklej zaufany link.</string>
+    <string name="crash_report_title">Raport o awarii</string>
+    <string name="crash_report_message">Ame niespodziewanie zamknęło się ostatnim razem. Udostępnić lokalny raport deweloperowi? Zawiera wersję aplikacji, wersję Androida, model urządzenia, stos wywołań i ostatnie logi. Nic nie jest wysyłane automatycznie.</string>
+    <string name="crash_report_settings_subtitle">Udostępnij ostatni lokalny log awarii deweloperowi</string>
+    <string name="crash_report_none">Brak raportu o awarii</string>
 </resources>
