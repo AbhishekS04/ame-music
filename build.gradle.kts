@@ -38,8 +38,8 @@ buildscript {
  * No "v" in the name — the in-app updater reads it as a number; the "v" is the
  * release tag's alone.
  */
-extra["ameVersionCode"] = 1
-extra["ameVersionName"] = "0.1.0"
+extra["ameVersionCode"] = 2
+extra["ameVersionName"] = "0.1.1"
 
 /*
  * Bump this by hand before cutting each sideloaded test build ("beta2",

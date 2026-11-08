@@ -1420,4 +1420,8 @@
     <string name="announcement_ok">确定</string>
     <string name="announcement_open">打开</string>
     <string name="sources_no_addons_footer">默认不添加任何插件。点按“添加插件”，然后粘贴你信任的链接。</string>
+    <string name="crash_report_title">崩溃报告</string>
+    <string name="crash_report_message">上次 Ame 意外关闭。要与开发者分享本地报告吗？报告包含应用版本、Android 版本、设备型号、堆栈跟踪和近期日志。不会自动发送任何内容。</string>
+    <string name="crash_report_settings_subtitle">与开发者分享最近的本地崩溃日志</string>
+    <string name="crash_report_none">没有可用的崩溃报告</string>
 </resources>

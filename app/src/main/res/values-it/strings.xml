@@ -1382,4 +1382,8 @@
     <string name="announcement_ok">OK</string>
     <string name="announcement_open">Apri</string>
     <string name="sources_no_addons_footer">Nessun addon viene aggiunto per impostazione predefinita. Tocca «Aggiungi un addon» e incolla un link affidabile.</string>
+    <string name="crash_report_title">Rapporto di arresto anomalo</string>
+    <string name="crash_report_message">Ame si è chiusa inaspettatamente l’ultima volta. Condividere un rapporto locale con lo sviluppatore? Include la versione dell’app, la versione di Android, il modello del dispositivo, lo stack trace e i log recenti. Nulla viene inviato automaticamente.</string>
+    <string name="crash_report_settings_subtitle">Condividi l’ultimo log di arresto anomalo locale con lo sviluppatore</string>
+    <string name="crash_report_none">Nessun rapporto di arresto anomalo disponibile</string>
 </resources>

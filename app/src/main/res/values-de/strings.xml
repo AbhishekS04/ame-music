@@ -1443,4 +1443,8 @@
     <string name="announcement_ok">OK</string>
     <string name="announcement_open">Öffnen</string>
     <string name="sources_no_addons_footer">Standardmäßig sind keine Addons hinzugefügt. Tippe auf „Addon hinzufügen“ und füge einen Link ein, dem du vertraust.</string>
+    <string name="crash_report_title">Absturzbericht</string>
+    <string name="crash_report_message">Ame wurde letztes Mal unerwartet geschlossen. Einen lokalen Bericht mit dem Entwickler teilen? Er enthält App-Version, Android-Version, Gerätemodell, Stacktrace und aktuelle Protokolle. Es wird nichts automatisch gesendet.</string>
+    <string name="crash_report_settings_subtitle">Letztes lokales Absturzprotokoll mit dem Entwickler teilen</string>
+    <string name="crash_report_none">Kein Absturzbericht verfügbar</string>
 </resources>

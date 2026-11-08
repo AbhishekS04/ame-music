@@ -1426,4 +1426,8 @@
     <string name="announcement_ok">ตกลง</string>
     <string name="announcement_open">เปิด</string>
     <string name="sources_no_addons_footer">ไม่มีการเพิ่มส่วนเสริมโดยค่าเริ่มต้น แตะ “เพิ่มส่วนเสริม” แล้ววางลิงก์ที่คุณเชื่อถือ</string>
+    <string name="crash_report_title">รายงานการขัดข้อง</string>
+    <string name="crash_report_message">Ame ปิดลงโดยไม่คาดคิดครั้งล่าสุด แชร์รายงานในเครื่องกับนักพัฒนาไหม รายงานมีเวอร์ชันแอป เวอร์ชัน Android รุ่นอุปกรณ์ สแต็กเทรซ และบันทึกล่าสุด ไม่มีการส่งข้อมูลใดโดยอัตโนมัติ</string>
+    <string name="crash_report_settings_subtitle">แชร์บันทึกการขัดข้องในเครื่องล่าสุดกับนักพัฒนา</string>
+    <string name="crash_report_none">ไม่มีรายงานการขัดข้อง</string>
 </resources>

@@ -83,7 +83,9 @@ target_link_options(ame_dst PRIVATE "-Wl,-z,max-page-size=16384")
 include(FetchContent)
 set(OBOE_DISABLE_CONVERSION ON CACHE BOOL "" FORCE)
 FetchContent_Declare(oboe
-    URL https://github.com/google/oboe/archive/refs/tags/1.11.0.tar.gz
+    URL
+        https://codeload.github.com/google/oboe/tar.gz/refs/tags/1.11.0
+        https://github.com/google/oboe/archive/refs/tags/1.11.0.tar.gz
     URL_HASH SHA256=0ccf2110640a2b4489f1c93a404f2978656b434d8c5dc9cb6258f9cc95c79b15)
 FetchContent_MakeAvailable(oboe)
 
@@ -105,7 +107,9 @@ set_property(TARGET ame_exclusive APPEND PROPERTY LINK_DEPENDS
 # config.h it ships for Android (android/jni/libusb.mk). The transport is
 # adapted from Mornye's Rust driver (LGPL-3.0).
 FetchContent_Declare(libusb
-    URL https://github.com/libusb/libusb/releases/download/v1.0.27/libusb-1.0.27.tar.bz2
+    URL
+        https://github.com/libusb/libusb/releases/download/v1.0.27/libusb-1.0.27.tar.bz2
+        https://downloads.sourceforge.net/project/libusb/libusb-1.0/libusb-1.0.27/libusb-1.0.27.tar.bz2
     URL_HASH SHA256=ffaa41d741a8a3bee244ac8e54a72ea05bf2879663c098c82fc5757853441575)
 FetchContent_MakeAvailable(libusb)
 add_library(ame_libusb STATIC

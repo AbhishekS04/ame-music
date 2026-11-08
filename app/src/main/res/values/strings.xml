@@ -1307,4 +1307,8 @@
     <string name="no_audio_version">No audio version found for this video</string>
     <string name="no_video_version">No video version found for this song</string>
     <string name="version_switch_in_party">Everyone in Listen Together hears the same version</string>
+    <string name="crash_report_title">Crash report</string>
+    <string name="crash_report_message">Ame closed unexpectedly last time. Share a local report with the developer? It includes the app version, Android version, device model, stack trace and recent logs. Nothing is sent automatically.</string>
+    <string name="crash_report_settings_subtitle">Share the last local crash log with the developer</string>
+    <string name="crash_report_none">No crash report available</string>
 </resources>

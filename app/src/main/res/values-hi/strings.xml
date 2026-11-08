@@ -1443,4 +1443,8 @@
     <string name="announcement_ok">ठीक है</string>
     <string name="announcement_open">खोलें</string>
     <string name="sources_no_addons_footer">डिफ़ॉल्ट रूप से कोई ऐडऑन नहीं जोड़ा जाता. “ऐडऑन जोड़ें” पर टैप करें और भरोसेमंद लिंक पेस्ट करें।</string>
+    <string name="crash_report_title">क्रैश रिपोर्ट</string>
+    <string name="crash_report_message">Ame पिछली बार अचानक बंद हो गया था। डेवलपर के साथ स्थानीय रिपोर्ट साझा करें? इसमें ऐप संस्करण, Android संस्करण, डिवाइस मॉडल, स्टैक ट्रेस और हाल के लॉग शामिल हैं। कुछ भी अपने आप नहीं भेजा जाता।</string>
+    <string name="crash_report_settings_subtitle">डेवलपर के साथ अंतिम स्थानीय क्रैश लॉग साझा करें</string>
+    <string name="crash_report_none">कोई क्रैश रिपोर्ट उपलब्ध नहीं है</string>
 </resources>

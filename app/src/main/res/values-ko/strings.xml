@@ -1293,4 +1293,8 @@
     <string name="announcement_ok">확인</string>
     <string name="announcement_open">열기</string>
     <string name="sources_no_addons_footer">기본적으로 추가되는 애드온은 없습니다. “애드온 추가”를 누르고 신뢰하는 링크를 붙여넣으세요.</string>
+    <string name="crash_report_title">충돌 보고서</string>
+    <string name="crash_report_message">지난번에 Ame가 예기치 않게 종료되었습니다. 로컬 보고서를 개발자와 공유할까요? 앱 버전, Android 버전, 기기 모델, 스택 트레이스 및 최근 로그가 포함됩니다. 자동으로 전송되는 것은 없습니다.</string>
+    <string name="crash_report_settings_subtitle">마지막 로컬 충돌 로그를 개발자와 공유</string>
+    <string name="crash_report_none">사용 가능한 충돌 보고서가 없습니다</string>
 </resources>

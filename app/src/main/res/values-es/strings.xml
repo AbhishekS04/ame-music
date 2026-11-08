@@ -1415,4 +1415,8 @@
     <string name="announcement_ok">Aceptar</string>
     <string name="announcement_open">Abrir</string>
     <string name="sources_no_addons_footer">No se añade ningún complemento de forma predeterminada. Toca «Añadir un complemento» y pega un enlace de confianza.</string>
+    <string name="crash_report_title">Informe de fallo</string>
+    <string name="crash_report_message">Ame se cerró inesperadamente la última vez. ¿Compartir un informe local con el desarrollador? Incluye la versión de la app, la versión de Android, el modelo del dispositivo, el seguimiento de la pila y los registros recientes. No se envía nada automáticamente.</string>
+    <string name="crash_report_settings_subtitle">Compartir el último registro de fallos local con el desarrollador</string>
+    <string name="crash_report_none">No hay ningún informe de fallo disponible</string>
 </resources>

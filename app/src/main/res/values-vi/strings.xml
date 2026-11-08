@@ -1360,4 +1360,8 @@
     <string name="announcement_ok">OK</string>
     <string name="announcement_open">Mở</string>
     <string name="sources_no_addons_footer">Không có tiện ích bổ sung nào được thêm theo mặc định. Nhấn “Thêm tiện ích” và dán liên kết bạn tin cậy.</string>
+    <string name="crash_report_title">Báo cáo sự cố</string>
+    <string name="crash_report_message">Ame đã đóng đột ngột lần trước. Chia sẻ báo cáo cục bộ với nhà phát triển? Báo cáo gồm phiên bản ứng dụng, phiên bản Android, kiểu thiết bị, dấu vết ngăn xếp và nhật ký gần đây. Không có gì được gửi tự động.</string>
+    <string name="crash_report_settings_subtitle">Chia sẻ nhật ký sự cố cục bộ gần nhất với nhà phát triển</string>
+    <string name="crash_report_none">Không có báo cáo sự cố</string>
 </resources>
