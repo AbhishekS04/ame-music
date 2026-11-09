@@ -92,9 +92,22 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
         override val syncedLyrics get() = AppSettings.syncedLyrics
         override val translationLanguage get() = AppSettings.translationLanguage
         override val versionAlignmentInProgress get() = AppSettings.versionAlignmentInProgress
+        override val musicFirst get() = AppSettings.musicFirst
 
         override fun setLastPlayerScreen(value: LastPlayerScreen) = AppSettings.setLastPlayerScreen(value)
         override fun setLyricsOffsetMs(value: Int) = AppSettings.setLyricsOffsetMs(value)
+        override fun setMusicFirst(value: Boolean) = AppSettings.setMusicFirst(value)
+    }
+
+    private val _explicitVideos = MutableStateFlow<Set<String>>(emptySet())
+    override val explicitVideos: StateFlow<Set<String>> get() = _explicitVideos
+
+    override fun setExplicitVideo(videoId: String, isVideo: Boolean) {
+        _explicitVideos.value = if (isVideo) {
+            _explicitVideos.value + videoId
+        } else {
+            _explicitVideos.value - videoId
+        }
     }
 
     override fun cachedCanvas(song: Song): CanvasArtwork? = CanvasRepository.cached(song)

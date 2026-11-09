@@ -63,6 +63,10 @@ interface PlayerHost {
     /** The heights the playing music video offers, and which one is held. */
     val musicVideoQuality: StateFlow<MusicVideoQualityUi> get() = NoVideoQuality
 
+    /** Explicitly requested video IDs when "Music First" is enabled. */
+    val explicitVideos: StateFlow<Set<String>> get() = MutableStateFlow(emptySet())
+    fun setExplicitVideo(videoId: String, isVideo: Boolean) = Unit
+
     /** Holds the picture at [height] from now on, or lets it choose with null. Remembered. */
     fun setMusicVideoQuality(height: Int?) = Unit
 
@@ -170,8 +174,12 @@ internal fun videoQualityLabel(height: Int): String = when {
 }
 
 /** Whether [song]'s picture can be shown here — a music video, on a platform that plays one. */
-internal fun showsMusicVideo(song: Song): Boolean =
-    song.isVideo && PlayerPlatform.host.musicVideoSupported
+internal fun showsMusicVideo(
+    song: Song,
+    explicitVideos: Set<String> = PlayerPlatform.host.explicitVideos.value,
+    musicFirst: Boolean = PlayerSettings.musicFirst.value,
+): Boolean =
+    song.isVideo && PlayerPlatform.host.musicVideoSupported && (!musicFirst || song.videoId in explicitVideos)
 
 /** @see PlayerHost.MusicVideo */
 @Composable
@@ -252,9 +260,11 @@ interface PlayerSettingsSource {
     val syncedLyrics: StateFlow<Boolean>
     val translationLanguage: StateFlow<String>
     val versionAlignmentInProgress: StateFlow<Boolean>
+    val musicFirst: StateFlow<Boolean>
 
     fun setLastPlayerScreen(value: LastPlayerScreen)
     fun setLyricsOffsetMs(value: Int)
+    fun setMusicFirst(value: Boolean) = Unit
 }
 
 /** The player's name for the installed host's settings, read where AppSettings used to be. */

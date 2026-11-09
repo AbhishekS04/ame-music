@@ -80,6 +80,7 @@ object DesktopSettings : PlayerSettingsSource {
     override val syncedLyrics = bool("syncedLyrics", true)
     override val translationLanguage = MutableStateFlow("en")
     override val versionAlignmentInProgress = MutableStateFlow(false)
+    override val musicFirst = bool("musicFirst", true)
 
     override fun setLastPlayerScreen(value: LastPlayerScreen) {
         _lastPlayerScreen.value = value
