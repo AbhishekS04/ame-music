@@ -127,11 +127,10 @@ enum class ThemeMode(val label: String) {
 }
 
 /**
- * How the app's SF Pro Display is set. [DEFAULT] draws each weight one cut
- * lighter and spaces it to Apple Music's own screens; [LEGACY] is the cut the
- * app shipped with before that, every weight its own and spaced tight.
+ * [AppFont] is declared in the shared module (shared/…/data/settings/AppFont.kt)
+ * so the theme that reads it can live there too. Same package, so nothing that
+ * referred to it needs to change.
  */
-enum class AppFont { DEFAULT, LEGACY }
 
 /**
  * Which of the equaliser's two tabs is driving the sound.

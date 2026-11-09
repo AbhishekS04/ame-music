@@ -50,7 +50,7 @@ jobs:
         path: app/build/outputs/apk/prod/release/*.apk
 
     - name: Create Sentry Release & Notify Deploys
-      if: success() && env.SENTRY_AUTH_TOKEN != ''
+      if: ${{ success() && secrets.SENTRY_AUTH_TOKEN != '' }}
       uses: getsentry/action-release@v3
       env:
         SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}

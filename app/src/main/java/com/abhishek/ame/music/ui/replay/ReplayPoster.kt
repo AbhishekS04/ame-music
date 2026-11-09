@@ -403,15 +403,8 @@ private fun drawHeader(
         "Replay · $label"
     }
     canvas.drawText(title, MARGIN, 132f, type.heading(46f, 0xFFFFFFFF.toInt()))
-    val brand = type.heading(46f, 0xE6FFFFFF.toInt()).apply {
-        textAlign = Paint.Align.RIGHT
-    }
-    canvas.drawText("Ame", POSTER_W - MARGIN, 132f, brand)
-    // The mark, to the left of the word, exactly as the story header and the
-    // card carry it. Without it the one artefact of this app that ends up in
-    // somebody else's chat was the only place the logo didn't appear.
-    val wordWidth = brand.measureText("Ame")
-    drawLogo(canvas, context, POSTER_W - MARGIN - wordWidth - LOGO_GAP, 132f)
+    // The Ame vector SVG wordmark alone, right-aligned at the top.
+    drawLogo(canvas, context, POSTER_W - MARGIN, 132f)
 
     val credit = listOfNotNull(
         holder.ifBlank { context.getString(R.string.default_replay_holder) },
@@ -767,10 +760,9 @@ private const val POSTER_H = 1920
 
 private const val MARGIN = 72f
 
-/** The mark's drawn size. 730×484 in the vector, so this keeps its proportions. */
-private const val LOGO_W = 66f
+/** The mark's drawn size: 860×320 in the vector, so 118×44 keeps exact proportions. */
+private const val LOGO_W = 118f
 private const val LOGO_H = 44f
-private const val LOGO_GAP = 20f
 
 /** The width type and artwork are laid out in. */
 private const val CONTENT_W = POSTER_W - MARGIN * 2
