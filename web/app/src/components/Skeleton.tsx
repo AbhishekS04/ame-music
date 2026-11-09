@@ -1,4 +1,17 @@
 import type { CSSProperties } from 'react';
+import type { SkulletTheme } from 'skullet';
+import {
+  SkeletonBox,
+  Skeleton,
+  SkeletonSuspense,
+  SkulletProvider,
+  useSkullet,
+  useReveal,
+  type SkeletonBoxProps,
+  type SkeletonProps,
+  type SkeletonSuspenseProps,
+  type SkulletConfig,
+} from 'skullet/react';
 
 interface BlockProps {
   width?: CSSProperties['width'];
@@ -9,19 +22,27 @@ interface BlockProps {
   style?: CSSProperties;
 }
 
-// A soft highlight sweeping left to right; still under reduced motion. The sweep animates
-// `transform` from the -100% it starts at, so it is set as a transform, not a translate.
-const block =
-  'relative shrink-0 overflow-hidden rounded-[4px] bg-skeleton after:absolute after:inset-0 after:transform-[translateX(-100%)] after:animate-shimmer after:bg-[linear-gradient(90deg,transparent_0,var(--skeleton-shimmer)_50%,transparent_100%)] motion-reduce:after:hidden motion-reduce:after:animate-none';
-
-/** A placeholder box with a shimmer. Purely decorative, so hidden from AT. */
+/** A placeholder box with Skullet shimmer. Purely decorative, so hidden from AT. */
 export function SkeletonBlock({ width, height, radius, aspectRatio, className, style }: BlockProps) {
   return (
     <div
       aria-hidden="true"
-      className={className ? `${block} ${className}` : block}
-      style={{ width, height, borderRadius: radius, aspectRatio, ...style }}
-    />
+      className={className ? `shrink-0 overflow-hidden ${className}` : 'shrink-0 overflow-hidden'}
+      style={{
+        width,
+        height,
+        borderRadius: radius,
+        aspectRatio,
+        ...style,
+      }}
+    >
+      <SkeletonBox
+        width="100%"
+        height="100%"
+        radius="inherit"
+        className="block h-full w-full"
+      />
+    </div>
   );
 }
 
@@ -42,3 +63,6 @@ export function SkeletonLine({ lineHeight, fontSize, width, style }: LineProps) 
     </div>
   );
 }
+
+export { SkeletonBox, Skeleton, SkeletonSuspense, SkulletProvider, useSkullet, useReveal };
+export type { SkeletonBoxProps, SkeletonProps, SkeletonSuspenseProps, SkulletConfig, SkulletTheme };

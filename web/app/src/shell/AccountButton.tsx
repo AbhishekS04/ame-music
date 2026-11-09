@@ -1,6 +1,7 @@
 import { ArrowUpRight, ChevronsUpDown } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { Menu, MenuHeader, MenuItem, MenuSeparator } from '@/components/Menu';
+import { SkeletonBlock } from '@/components/Skeleton';
 import { useRefreshYtAuth, useSelectChannel, useSetConnected, useYtAuth } from '@/extension/useYtAuth';
 
 const SIGN_IN_URL = 'https://accounts.google.com/ServiceLogin?service=youtube&continue=https://music.youtube.com/';
@@ -36,7 +37,14 @@ export function AccountButton() {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const close = useCallback(() => setAnchor(null), []);
 
-  if (status.state !== 'ready') return null;
+  if (status.state !== 'ready') {
+    return (
+      <div className="flex w-full min-w-0 items-center gap-2 rounded-nav px-1 py-1.5" aria-hidden="true">
+        <SkeletonBlock width={24} height={24} radius="50%" />
+        <SkeletonBlock width={90} height={13} radius={3} />
+      </div>
+    );
+  }
   const { auth } = status;
 
   if (!auth.browserSignedIn) {

@@ -1,6 +1,7 @@
 import { ArrowUpRight, ListMusic, Settings } from 'lucide-react';
 import { MdOutlineExtension } from 'react-icons/md';
 import { PrefetchLink, PrefetchNavLink } from '@/components/PrefetchLink';
+import { SkeletonBlock } from '@/components/Skeleton';
 import { LogoMark } from '@/components/icons/LogoMark';
 import {
   AlbumsIcon,
@@ -75,6 +76,25 @@ function NavList({ items, onNavigate }: { items: NavItem[]; onNavigate: () => vo
   );
 }
 
+const SKELETON_PLAYLIST_WIDTHS = ['68%', '45%', '78%', '52%', '62%'];
+
+function SidebarPlaylistSkeleton({ count = 4 }: { count?: number }) {
+  return (
+    <>
+      {Array.from({ length: count }, (_, i) => (
+        <li key={i}>
+          <div className={`${item} pointer-events-none`} aria-hidden="true">
+            <span className={icon}>
+              <SkeletonBlock width={16} height={16} radius={4} />
+            </span>
+            <SkeletonBlock width={SKELETON_PLAYLIST_WIDTHS[i % SKELETON_PLAYLIST_WIDTHS.length]} height={12} radius={3} />
+          </div>
+        </li>
+      ))}
+    </>
+  );
+}
+
 /** Library and Playlists (report §1), once YouTube requests are made as the user. */
 function LibraryNav({ onNavigate }: { onNavigate: () => void }) {
   const playlists = useLibraryPlaylists();
@@ -90,16 +110,20 @@ function LibraryNav({ onNavigate }: { onNavigate: () => void }) {
             <span className={navLabel}>{LIBRARY_SECTIONS.playlists.title}</span>
           </PrefetchNavLink>
         </li>
-        {playlists.data?.map((playlist) => (
-          <li key={playlist.id}>
-            <PrefetchNavLink to={hrefFor(playlist) ?? '/library/playlists'} className={item} onClick={onNavigate}>
-              <span className={icon}>
-                <ListMusic size={17} strokeWidth={1.8} />
-              </span>
-              <span className={navLabel}>{playlist.title}</span>
-            </PrefetchNavLink>
-          </li>
-        ))}
+        {playlists.data ? (
+          playlists.data.map((playlist) => (
+            <li key={playlist.id}>
+              <PrefetchNavLink to={hrefFor(playlist) ?? '/library/playlists'} className={item} onClick={onNavigate}>
+                <span className={icon}>
+                  <ListMusic size={17} strokeWidth={1.8} />
+                </span>
+                <span className={navLabel}>{playlist.title}</span>
+              </PrefetchNavLink>
+            </li>
+          ))
+        ) : (
+          <SidebarPlaylistSkeleton count={4} />
+        )}
       </ul>
     </>
   );
@@ -118,16 +142,20 @@ function SpotifyNav({ onNavigate }: { onNavigate: () => void }) {
             <span className={navLabel}>All Spotify Playlists</span>
           </PrefetchNavLink>
         </li>
-        {playlists.data?.map((playlist) => (
-          <li key={playlist.id}>
-            <PrefetchNavLink to={`/spotify/playlist/${encodeURIComponent(playlist.id)}`} className={item} onClick={onNavigate}>
-              <span className={icon}>
-                <ListMusic size={17} strokeWidth={1.8} />
-              </span>
-              <span className={navLabel}>{playlist.name}</span>
-            </PrefetchNavLink>
-          </li>
-        ))}
+        {playlists.data ? (
+          playlists.data.map((playlist) => (
+            <li key={playlist.id}>
+              <PrefetchNavLink to={`/spotify/playlist/${encodeURIComponent(playlist.id)}`} className={item} onClick={onNavigate}>
+                <span className={icon}>
+                  <ListMusic size={17} strokeWidth={1.8} />
+                </span>
+                <span className={navLabel}>{playlist.name}</span>
+              </PrefetchNavLink>
+            </li>
+          ))
+        ) : (
+          <SidebarPlaylistSkeleton count={2} />
+        )}
       </ul>
     </>
   );

@@ -12,10 +12,10 @@ export function HomeSkeleton() {
   return (
     <div aria-busy="true">
       <PageHeader title="Home" />
-      <ShelfSkeleton kind="editorial" />
-      <ShelfSkeleton kind="tracks" />
-      <ShelfSkeleton kind="square" />
-      <ShelfSkeleton kind="square" />
+      <ShelfSkeleton kind="tracks" titleWidth={150} />
+      <ShelfSkeleton kind="tracks" titleWidth={120} />
+      <ShelfSkeleton kind="square" titleWidth={130} />
+      <ShelfSkeleton kind="square" titleWidth={160} />
     </div>
   );
 }

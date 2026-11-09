@@ -156,8 +156,8 @@
   --containerInnerStrokeAlpha: 0.1;
 
   /* Skeleton fill and shimmer highlight. */
-  --skeleton-fill: #0000000f;
-  --skeleton-shimmer: #ffffff99;
+  --skeleton-fill: var(--skullet-base, #0000000f);
+  --skeleton-shimmer: var(--skullet-highlight, #ffffff99);
 }
 
 @media (min-width: 1000px) {
@@ -241,8 +241,8 @@
     --containerInnerStroke: #ffffff;
     --containerInnerStrokeAlpha: 0.25;
 
-    --skeleton-fill: #ffffff12;
-    --skeleton-shimmer: #ffffff14;
+    --skeleton-fill: var(--skullet-base, #ffffff12);
+    --skeleton-shimmer: var(--skullet-highlight, #ffffff14);
   }
 }
 
