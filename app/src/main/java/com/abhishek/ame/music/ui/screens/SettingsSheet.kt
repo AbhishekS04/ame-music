@@ -633,11 +633,17 @@ fun SettingsScreen(
         ) {
             val musicFirstTitle = stringResource(R.string.music_first)
             row(musicFirstTitle, "video", "music first", "audio", "video to audio") {
-                SettingsSubRow(
+                SettingsRow(
+                    icon = SfIcons.MusicNote,
                     title = musicFirstTitle,
                     subtitle = stringResource(R.string.music_first_subtitle),
-                    checked = musicFirst,
-                    onCheckedChange = AppSettings::setMusicFirst,
+                    trailing = {
+                        IosSwitch(
+                            checked = musicFirst,
+                            onCheckedChange = AppSettings::setMusicFirst,
+                        )
+                    },
+                    onClick = { AppSettings.setMusicFirst(!musicFirst) },
                 )
             }
             val outputPrecisionTitle = stringResource(R.string.output_precision)

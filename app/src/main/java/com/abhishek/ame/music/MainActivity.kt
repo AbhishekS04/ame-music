@@ -1416,6 +1416,8 @@ private fun AmeApp(
 
             convertedFromVideo = song
             convertedAudioId = audio.videoId
+            PlayerPlatform.host.setExplicitVideo(audio.videoId, false)
+            PlayerPlatform.host.setExplicitVideo(song.videoId, false)
             TrackLog.d("Player", "audio switch applying '${audio.title}' (${audio.videoId})", song.videoId)
             val target = audio.copy(
                 isVideoOrigin = true,
@@ -1487,6 +1489,8 @@ private fun AmeApp(
 
             convertedFromAudio = song
             convertedVideoId = video.videoId
+            PlayerPlatform.host.setExplicitVideo(video.videoId, true)
+            PlayerPlatform.host.setExplicitVideo(song.videoId, true)
             TrackLog.d("Player", "video switch applying '${video.title}' (${video.videoId})", song.videoId)
             val target = video.copy(
                 queueTier = song.queueTier,
@@ -4412,6 +4416,8 @@ private fun AmeApp(
                         if (isExplicitVideo) {
                             // Currently showing video -> user clicked "Convert to audio"
                             PlayerPlatform.host.setExplicitVideo(song.videoId, false)
+                            convertedVideoId?.let { PlayerPlatform.host.setExplicitVideo(it, false) }
+                            convertedFromAudio?.videoId?.let { PlayerPlatform.host.setExplicitVideo(it, false) }
                             keepVideoId = null
                             convertedVideoId = null
                             if (originalAudio != null) {
@@ -4427,9 +4433,12 @@ private fun AmeApp(
                         } else {
                             // Currently in music-first audio mode -> user clicked "Convert to video"
                             PlayerPlatform.host.setExplicitVideo(song.videoId, true)
+                            val cached = YtMusicRepository.cachedVideoVersion(song.videoId)
+                                ?: YtMusicRepository.cachedVideoVersion(versionEffectiveSong.videoId)
+                            if (cached != null) {
+                                PlayerPlatform.host.setExplicitVideo(cached.videoId, true)
+                            }
                             if (!song.isVideo) {
-                                val cached = YtMusicRepository.cachedVideoVersion(song.videoId)
-                                    ?: YtMusicRepository.cachedVideoVersion(versionEffectiveSong.videoId)
                                 if (cached != null && cached.videoId != song.videoId &&
                                     !versionAlignmentPending(cached.videoId)
                                 ) {

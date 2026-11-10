@@ -16,6 +16,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
+import com.abhishek.ame.music.ui.player.PlayerSettings
 import com.abhishek.ame.music.ui.player.MESH_CYCLE_MILLIS
 import com.abhishek.ame.music.ui.player.MeshGradientBackground
 import com.abhishek.ame.music.ui.player.WelcomeMeshPalettes
@@ -167,8 +168,10 @@ val SHELF_CARD_WIDTH = 150.dp
  * height for a music video — its picture's own shape, as YouTube Music lists
  * one, rather than a still cropped into a square.
  */
-fun Modifier.trackArtSize(height: Dp, isVideo: Boolean): Modifier =
-    if (isVideo) size(width = height * (16f / 9f), height = height) else size(height)
+fun Modifier.trackArtSize(height: Dp, isVideo: Boolean): Modifier {
+    val showAsVideo = isVideo && !PlayerSettings.musicFirst.value
+    return if (showAsVideo) size(width = height * (16f / 9f), height = height) else size(height)
+}
 
 /** Share of the row a lead-shelf card takes, so the next one peeks in past it. */
 private const val HERO_CARD_FRACTION = 0.70f
