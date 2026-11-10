@@ -278,8 +278,8 @@
     <string name="skip_silence_float_subtitle">Unavailable on 32-bit float output</string>
     <string name="smart_version_alignment">Smart audio alignment</string>
     <string name="smart_version_alignment_subtitle">Analyze audio waveforms to match the exact corresponding playback moment</string>
-    <string name="music_first">Play audio first</string>
-    <string name="music_first_subtitle">Play tracks as audio by default; convert to video anytime from the player menu</string>
+    <string name="music_first" translatable="false">Play audio first</string>
+    <string name="music_first_subtitle" translatable="false">Play tracks as audio by default; convert to video anytime from the player menu</string>
     <string name="equalizer">Equalizer</string>
     <string name="equalizer_subtitle">Tone, seven bands and balance</string>
     <string name="equalizer_footer">Shapes the sound inside Ame, before it reaches the system.</string>
