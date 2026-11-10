@@ -84,17 +84,11 @@ internal suspend fun renderLyricsShareCard(
     drawBackdrop(canvas, cover, 0f, cardH)
 
     // ── Header ──────────────────────────────────────────────────────────────
-    // The mark alone, at the top right — the same one the Replay carries, so
-    // two of these cards still read as one family. Nothing else goes above
-    // the passage: the picture is the verse, not a caption for it.
-    val brand = type.heading(46f, 0xE6FFFFFF.toInt()).apply {
-        textAlign = Paint.Align.RIGHT
-    }
-    canvas.drawText(BRAND, CARD_W - CARD_MARGIN, HEADER_BASELINE, brand)
+    // The Ame vector SVG wordmark alone, at the top right.
     drawLogo(
         canvas,
         context,
-        CARD_W - CARD_MARGIN - brand.measureText(BRAND) - LOGO_GAP,
+        CARD_W - CARD_MARGIN,
         HEADER_BASELINE,
     )
 
@@ -265,9 +259,6 @@ private const val MAX_CARD_H = 1920f
 
 private const val CARD_MARGIN = 72f
 private const val CARD_CONTENT_W = CARD_W - CARD_MARGIN * 2
-
-private const val LOGO_GAP = 20f
-private const val BRAND = "Ame"
 
 /** Baseline of the mark at the top right, and just under it where the gap starts. */
 private const val HEADER_BASELINE = 132f

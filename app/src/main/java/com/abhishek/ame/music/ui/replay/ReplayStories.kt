@@ -412,19 +412,14 @@ private fun StoryChrome(
                 color = Color.White,
                 modifier = Modifier.weight(1f),
             )
-            // The mark and the word together, the way the card carries it.
+            // The Ame vector SVG wordmark alone, perfectly proportioned (860:320)
             Icon(
                 painter = painterResource(R.drawable.ic_logo),
                 contentDescription = null,
                 tint = Color.White.copy(alpha = 0.9f),
-                modifier = Modifier.size(width = 26.dp, height = 17.dp),
-            )
-            Spacer(Modifier.width(7.dp))
-            Text(
-                text = "Ame",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.W700,
-                color = Color.White.copy(alpha = 0.9f),
+                modifier = Modifier
+                    .height(20.dp)
+                    .aspectRatio(860f / 320f),
             )
         }
     }

@@ -3,7 +3,7 @@
 <br/>
 <br/>
 
-<img src="ame-logo-dark.png" alt="Ame app icon" width="200" />
+<img src="logo/ame-logo.png" alt="Ame app icon" width="200" />
 
 # Ame
 

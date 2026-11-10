@@ -127,11 +127,10 @@ enum class ThemeMode(val label: String) {
 }
 
 /**
- * How the app's SF Pro Display is set. [DEFAULT] draws each weight one cut
- * lighter and spaces it to Apple Music's own screens; [LEGACY] is the cut the
- * app shipped with before that, every weight its own and spaced tight.
+ * [AppFont] is declared in the shared module (shared/…/data/settings/AppFont.kt)
+ * so the theme that reads it can live there too. Same package, so nothing that
+ * referred to it needs to change.
  */
-enum class AppFont { DEFAULT, LEGACY }
 
 /**
  * Which of the equaliser's two tabs is driving the sound.
@@ -480,6 +479,9 @@ object AppSettings {
 
     /** Analyzes audio waveform/envelope to align matching playback moment between versions. */
     val smartVersionAlignment = MutableStateFlow(true)
+
+    /** Plays audio by default; converts to video only on user request. */
+    val musicFirst = MutableStateFlow(true)
 
     /** Drops haze blur (status bar, mini player, bottom fade, lyrics focus) for a solid-fill look. */
     val reduceDynamicBlur = MutableStateFlow(false)
@@ -1000,6 +1002,7 @@ object AppSettings {
         swipeToPlayNext.value = prefs.getBoolean(KEY_SWIPE_TO_PLAY_NEXT, false)
         dontRepeatSuggestions.value = prefs.getBoolean(KEY_DONT_REPEAT_SUGGESTIONS, false)
         smartVersionAlignment.value = prefs.getBoolean(KEY_SMART_VERSION_ALIGNMENT, true)
+        musicFirst.value = prefs.getBoolean(KEY_MUSIC_FIRST, true)
         reduceDynamicBlur.value = prefs.getBoolean(KEY_REDUCE_BLUR, false)
         liquidGlass.value = prefs.getBoolean(KEY_LIQUID_GLASS, false)
         progressiveBlur.value = prefs.getBoolean(KEY_PROGRESSIVE_BLUR, false)
@@ -1428,6 +1431,11 @@ object AppSettings {
     fun setSmartVersionAlignment(value: Boolean) {
         smartVersionAlignment.value = value
         prefs.edit().putBoolean(KEY_SMART_VERSION_ALIGNMENT, value).apply()
+    }
+
+    fun setMusicFirst(value: Boolean) {
+        musicFirst.value = value
+        prefs.edit().putBoolean(KEY_MUSIC_FIRST, value).apply()
     }
 
     fun setReduceDynamicBlur(value: Boolean) {
@@ -2221,6 +2229,7 @@ object AppSettings {
     private const val KEY_SWIPE_TO_PLAY_NEXT = "swipe_to_play_next"
     private const val KEY_DONT_REPEAT_SUGGESTIONS = "dont_repeat_suggestions"
     private const val KEY_SMART_VERSION_ALIGNMENT = "smart_version_alignment"
+    private const val KEY_MUSIC_FIRST = "music_first"
     private const val KEY_REDUCE_BLUR = "reduce_dynamic_blur"
     private const val KEY_LIQUID_GLASS = "liquid_glass"
     private const val KEY_PROGRESSIVE_BLUR = "progressive_blur"

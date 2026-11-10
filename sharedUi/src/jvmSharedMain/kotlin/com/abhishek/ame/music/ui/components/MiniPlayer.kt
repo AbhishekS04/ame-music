@@ -1,13 +1,12 @@
 package com.abhishek.ame.music.ui.components
 
-import com.abhishek.ame.music.R
-
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
@@ -15,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -27,7 +27,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -37,7 +36,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -46,6 +44,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.unit.Dp
@@ -55,25 +54,36 @@ import coil3.compose.AsyncImage
 import com.abhishek.ame.music.data.model.ROW_ART_PX
 import com.abhishek.ame.music.data.model.Song
 import com.abhishek.ame.music.data.model.artworkAt
-import com.abhishek.ame.music.data.settings.AppSettings
-import com.abhishek.ame.music.sharedui.resources.Res as SharedRes
+import com.abhishek.ame.music.sharedui.resources.Res
 import com.abhishek.ame.music.sharedui.resources.ic_player_next
-import com.abhishek.ame.music.ui.components.thumbnailBorder
+import com.abhishek.ame.music.sharedui.resources.pause
+import com.abhishek.ame.music.sharedui.resources.play
+import com.abhishek.ame.music.sharedui.resources.widget_next
 import com.abhishek.ame.music.ui.haptics.Haptic
 import com.abhishek.ame.music.ui.haptics.rememberHaptics
 import com.abhishek.ame.music.ui.player.PlayerDock
-import com.abhishek.ame.music.ui.player.AndroidMusicVideo
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.animation.core.animateDpAsState
+import com.abhishek.ame.music.ui.player.PlayerPlatform
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
 import kotlin.math.sqrt
+
+/*
+ * Moved here from app/ui/components/MiniPlayer.kt.
+ *
+ * It was one of the two components that made the phone look like itself, and it
+ * was only ever blocked from sharing by four things, all of which turned out to
+ * need nothing Android: two string resources (they already exist in this
+ * module's composeResources), the haptics (this module has a JVM no-op), the
+ * music-video surface (now a host call, as the glass bar already reads it), and
+ * the artwork lookup (also a host call). Nothing else changed — the geometry,
+ * easing and gesture constants below are the phone's own.
+ */
 
 /**
  * The transport buttons' touch target. Material's default 48dp is what a bar
@@ -208,7 +218,7 @@ interface MiniPlayerPull {
  * more than one item.
  */
 @Composable
-internal fun Modifier.miniPlayerGestures(
+fun Modifier.miniPlayerGestures(
     pull: MiniPlayerPull?,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
@@ -327,7 +337,7 @@ internal fun Modifier.miniPlayerGestures(
  * sheet's travel, never a recomposition of the bar.
  */
 @Composable
-internal fun Modifier.playerDockArt(dock: PlayerDock?, corner: Dp): Modifier {
+fun Modifier.playerDockArt(dock: PlayerDock?, corner: Dp): Modifier {
     if (dock == null) return this
     val placed = remember { arrayOfNulls<LayoutCoordinates>(1) }
     DisposableEffect(dock) {
@@ -343,6 +353,13 @@ internal fun Modifier.playerDockArt(dock: PlayerDock?, corner: Dp): Modifier {
 
 /** The mini player's cover for a music video: 16:9 at the cover's 40dp height. */
 private val VIDEO_ART_WIDTH = 71.dp
+
+/**
+ * The skip glyph's size, from the phone's own copy. Sized against the play
+ * glyph beside it the way the full player sizes it against its own play
+ * button — about half as wide again and two thirds as tall.
+ */
+private val NEXT_GLYPH_SIZE = 25.dp
 
 /** Frosted mini player that rides just above the floating tab bar. */
 @OptIn(ExperimentalHazeMaterialsApi::class)
@@ -365,7 +382,7 @@ fun MiniPlayer(
     pull: MiniPlayerPull? = null,
     modifier: Modifier = Modifier,
 ) {
-    val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val reduceDynamicBlur by PlayerPlatform.host.settings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val haptics = rememberHaptics()
     // percent rather than a dp figure, so the corner stays exactly half the
     // height if the row's contents ever change it — which is what keeps a pill
@@ -430,7 +447,7 @@ fun MiniPlayer(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             ) {
                 AsyncImage(
-                    model = rememberRemoteArtworkUrl(song)?.artworkAt(ROW_ART_PX),
+                    model = PlayerPlatform.host.rememberRemoteArtworkUrl(song)?.artworkAt(ROW_ART_PX),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
@@ -439,12 +456,11 @@ fun MiniPlayer(
                 // it, as the web player's mini player does — the full player,
                 // when it is up, takes the picture over.
                 if (song.isVideo) {
-                    AndroidMusicVideo(
+                    PlayerPlatform.host.MusicVideo(
                         videoId = song.videoId,
                         fit = false,
                         onRenderedChanged = {},
                         modifier = Modifier.fillMaxSize(),
-                        priority = 0,
                     )
                 }
             }
@@ -483,7 +499,7 @@ fun MiniPlayer(
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = stringResource(if (isPlaying) R.string.pause else R.string.play),
+                        contentDescription = stringResource(if (isPlaying) Res.string.pause else Res.string.play),
                         tint = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.size(GLYPH_SIZE),
                     )
@@ -518,15 +534,13 @@ fun MiniPlayer(
  * read as one glyph at two sizes. Shared with the glass bar's docked player.
  */
 @Composable
-internal fun MiniPlayerNextGlyph(tint: Color) {
+fun MiniPlayerNextGlyph(tint: Color) {
     Icon(
-        painter = painterResource(SharedRes.drawable.ic_player_next),
-        contentDescription = stringResource(R.string.widget_next),
+        painter = painterResource(Res.drawable.ic_player_next),
+        contentDescription = stringResource(Res.string.widget_next),
         tint = tint,
         modifier = Modifier
             .size(NEXT_GLYPH_SIZE)
             .graphicsLayer { scaleY = 0.85f },
     )
 }
-
-private val NEXT_GLYPH_SIZE = 25.dp

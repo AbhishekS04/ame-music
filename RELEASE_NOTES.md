@@ -1,43 +1,49 @@
-# Ame v0.1.1
+# Ame v0.1.3
 
-Privacy-first crash reports, Android TV and Android phone builds, and a more
-reliable CI pipeline.
+Official brand vector identity, fluid elastic drawer physics, high-fidelity share cards, and "Play audio first" playback mode with on-demand video conversion.
 
 ## Mobile (Android)
 
 | Build | File |
 |---|---|
-| Universal (recommended) | `ame-0.1.1.apk` |
-| arm64-v8a | `ame-0.1.1_arm64-v8a.apk` |
-| armeabi-v7a | `ame-0.1.1_armeabi-v7a.apk` |
-| x86_64 (emulator / Chromebook) | `ame-0.1.1_x86_64.apk` |
+| Universal (recommended) | `ame-0.1.3.apk` |
+| arm64-v8a | `ame-0.1.3_arm64-v8a.apk` |
+| armeabi-v7a | `ame-0.1.3_armeabi-v7a.apk` |
+| x86_64 (emulator / Chromebook) | `ame-0.1.3_x86_64.apk` |
 
 ## Android TV
 
 | Build | File |
 |---|---|
-| Universal (recommended) | `ame-tv-0.1.1.apk` |
-| arm64-v8a | `ame-tv-0.1.1_arm64-v8a.apk` |
-| armeabi-v7a | `ame-tv-0.1.1_armeabi-v7a.apk` |
-| x86_64 (emulator) | `ame-tv-0.1.1_x86_64.apk` |
+| Universal (recommended) | `ame-tv-0.1.3.apk` |
+| arm64-v8a | `ame-tv-0.1.3_arm64-v8a.apk` |
+| armeabi-v7a | `ame-tv-0.1.3_armeabi-v7a.apk` |
+| x86_64 (emulator) | `ame-tv-0.1.3_x86_64.apk` |
 
-## Crash reports
+## What's Changed
 
-Crash reports are **local only**. When Ame crashes, the next launch offers to
-create a report containing:
+### 🎨 Brand Identity & Vector Assets
+- Reorganized brand assets into `/logo` with clean high-resolution wordmarks and vector SVGs.
+- Converted Ame logo into native Android Vector Drawables (`ic_logo.xml`) for razor-sharp rendering on any screen density.
+- Re-generated launcher icons across all mipmap densities (`mdpi` through `xxxhdpi`).
+- Cleaned app icon selector to official default branding.
+- Converted notification small icon to the crisp white Ame wordmark (Samsung Now Bar, lockscreen, AOD, and status bar).
 
-- app version and package
-- Android version and API level
-- device manufacturer, model and ABI
-- stack trace / native trace / ANR trace
-- a best-effort logcat excerpt
+### 📐 Elastic Bottom Sheet Physics (Vaul Curve)
+- Redesigned player drawer drag mechanics: 1:1 finger tracking with velocity-seeded dismiss.
+- Anchored sheet base (`TransformOrigin(0.5f, 1.0f)`) preventing black empty voids and gaps when pulled upward.
+- Smooth elastic resistance when dragged upward beyond maximum height with a spring settle bounce.
 
-Nothing is uploaded automatically. Tapping **Share** opens the system share
-sheet, so the listener chooses where the report goes. Reports can also be
-shared later from **Settings → Miscellaneous → Crash report**.
+### ✨ Vector Share Cards
+- Lyrics share card now displays the standalone Ame vector wordmark with exact proportions.
+- Replay story and stats poster cards optimized with 860:320 aspect ratio vector wordmarks without redundant plain-text labels.
 
-## Other changes
+### 🎵 "Play audio first" Mode & Instant Video Conversion
+- Added dedicated **"Play audio first"** toggle in **Settings → Playback** (enabled by default).
+- Prioritizes audio streams with 1:1 square music cover artwork across Home, Search, and Queue.
+- Added instant on-demand **"Convert to video"** option in the 3-dots track menu to seamlessly switch to video playback on the fly.
+- Added **"Convert to audio"** toggle in the track menu to revert back to audio mode anytime.
 
-- Wear OS support has been removed from this repository.
-- CI now downloads Gradle from a checksum-verified mirror instead of the
-  GitHub distribution endpoint that was returning HTTP 504.
+### 🌐 Web & Extension Improvements
+- Skullet skeleton loading states aligned across home feed and navigation bar.
+- Extension v1.0.0 released with amemusic.vercel.app routing and chunking improvements.

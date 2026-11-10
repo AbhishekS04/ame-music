@@ -19,6 +19,10 @@ rootProject.name = "Ame"
 include(":shared")
 include(":sharedUi")
 
+// The Linux desktop app. Needs no Android SDK: it is the module the block
+// below deliberately leaves out of the "is there an SDK?" question.
+// include(":desktop")
+
 // The Android module only when there is an SDK to build it against. A machine
 // set up for the desktop alone has none, and including it there fails at
 // configuration time — before the desktop module it has nothing to do with can

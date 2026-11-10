@@ -106,3 +106,7 @@ CLAUDE.md
 *.ipa
 # Locally renamed assets staged for `gh release create`
 release/
+
+# ── Local notes / future tasks ──────────────────────────────────────────────
+ORIGIN_ISLAND_TODO.md
+

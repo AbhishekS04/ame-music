@@ -311,6 +311,7 @@ import com.abhishek.ame.music.data.model.TopPickMood
 import com.abhishek.ame.music.ui.screens.MoodGridPage
 import com.abhishek.ame.music.ui.player.NowPlayingScreen
 import com.abhishek.ame.music.ui.player.MusicVideoEngine
+import com.abhishek.ame.music.ui.player.PlayerPlatform
 import com.abhishek.ame.music.ui.player.PlayerSheetMotion
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.drawBehind
@@ -1415,6 +1416,8 @@ private fun AmeApp(
 
             convertedFromVideo = song
             convertedAudioId = audio.videoId
+            PlayerPlatform.host.setExplicitVideo(audio.videoId, false)
+            PlayerPlatform.host.setExplicitVideo(song.videoId, false)
             TrackLog.d("Player", "audio switch applying '${audio.title}' (${audio.videoId})", song.videoId)
             val target = audio.copy(
                 isVideoOrigin = true,
@@ -1486,6 +1489,8 @@ private fun AmeApp(
 
             convertedFromAudio = song
             convertedVideoId = video.videoId
+            PlayerPlatform.host.setExplicitVideo(video.videoId, true)
+            PlayerPlatform.host.setExplicitVideo(song.videoId, true)
             TrackLog.d("Player", "video switch applying '${video.title}' (${video.videoId})", song.videoId)
             val target = video.copy(
                 queueTier = song.queueTier,
@@ -4377,10 +4382,16 @@ private fun AmeApp(
                 AppSettings.smartVersionAlignment.value &&
                     VersionAudioAligner.getCachedOffsetMs(song.videoId, targetId) == null &&
                     YtMusicRepository.versionTimeMap(song.videoId, targetId) == null
-            val menuIsAudioVersion = if (optimisticVersionSong != null) {
-                !optimisticVersionSong!!.isVideo
+            val isExplicitVideo = (PlayerPlatform.host.explicitVideos.value.contains(song.videoId)) ||
+                convertedVideoId == song.videoId || keepVideoId == song.videoId
+            val menuIsAudioVersion = if (AppSettings.musicFirst.value) {
+                !isExplicitVideo
             } else {
-                !song.isVideo && convertedVideoId != song.videoId
+                if (optimisticVersionSong != null) {
+                    !optimisticVersionSong!!.isVideo
+                } else {
+                    !song.isVideo && convertedVideoId != song.videoId
+                }
             }
             // Offered for the playing track wherever its menu is opened,
             // whether or not the other version has been found yet: the
@@ -4400,6 +4411,53 @@ private fun AmeApp(
                     val c = controller
                     val original = convertedFromVideo
                     val originalAudio = convertedFromAudio
+
+                    if (AppSettings.musicFirst.value) {
+                        if (isExplicitVideo) {
+                            // Currently showing video -> user clicked "Convert to audio"
+                            PlayerPlatform.host.setExplicitVideo(song.videoId, false)
+                            convertedVideoId?.let { PlayerPlatform.host.setExplicitVideo(it, false) }
+                            convertedFromAudio?.videoId?.let { PlayerPlatform.host.setExplicitVideo(it, false) }
+                            keepVideoId = null
+                            convertedVideoId = null
+                            if (originalAudio != null) {
+                                convertedFromAudio = null
+                                c.swapToVersion(originalAudio)
+                            } else {
+                                val cached = YtMusicRepository.cachedAudioVersion(song.videoId)
+                                    ?: YtMusicRepository.cachedAudioVersion(versionEffectiveSong.videoId)
+                                if (cached != null && cached.videoId != song.videoId) {
+                                    scope.launch { switchToMusicOnly(song, pauseWhileResolving = false) }
+                                }
+                            }
+                        } else {
+                            // Currently in music-first audio mode -> user clicked "Convert to video"
+                            PlayerPlatform.host.setExplicitVideo(song.videoId, true)
+                            val cached = YtMusicRepository.cachedVideoVersion(song.videoId)
+                                ?: YtMusicRepository.cachedVideoVersion(versionEffectiveSong.videoId)
+                            if (cached != null) {
+                                PlayerPlatform.host.setExplicitVideo(cached.videoId, true)
+                            }
+                            if (!song.isVideo) {
+                                if (cached != null && cached.videoId != song.videoId &&
+                                    !versionAlignmentPending(cached.videoId)
+                                ) {
+                                    optimisticVersionSong = cached.copy(
+                                        queueTier = song.queueTier,
+                                        queueEntryId = song.queueEntryId,
+                                        radioName = song.radioName,
+                                        playbackSource = song.playbackSource,
+                                        playbackSourceType = song.playbackSourceType,
+                                        playbackSourceId = song.playbackSourceId,
+                                    )
+                                }
+                                scope.launch { switchToVideo(song, pauseWhileResolving = false) }
+                            } else {
+                                keepVideoId = song.videoId
+                            }
+                        }
+                        return@toggle
+                    }
                     when {
                         c == null -> Unit
                         original != null && (
