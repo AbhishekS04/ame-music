@@ -49,7 +49,9 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: ame-prod-release-signed
-        path: app/build/outputs/apk/prod/release/*.apk
+        path: |
+          app/build/outputs/apk/prod/release/*.apk
+          tv/build/outputs/apk/prod/release/*.apk
 
     - name: Create Sentry Release & Notify Deploys
       if: success() && env.SENTRY_AUTH_TOKEN != ''
