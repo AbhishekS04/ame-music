@@ -65,6 +65,7 @@
         android:allowBackup="true"
         android:appCategory="audio"
         android:usesCleartextTraffic="false"
+        android:enableOnBackInvokedCallback="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
@@ -731,6 +732,17 @@
         <meta-data
             android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
             android:value="com.abhishek.ame.music.playback.cast.CastOptionsProvider" />
+
+        <!-- Dedicated foreground service for in-app APK downloads -->
+        <service
+            android:name=".update.UpdateService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- BroadcastReceiver to catch Android PackageInstaller confirmation dialogs -->
+        <receiver
+            android:name=".update.InstallReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

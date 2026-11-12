@@ -770,8 +770,10 @@ fun NowPlayingScreen(
     lyricsProviderStates: Map<LyricsSource, LyricsProviderState>,
     onSelectLyricsProvider: (LyricsSource) -> Unit,
     lyricsUnavailable: Boolean,
-    lyricsOffsetOpen: Boolean,
-    onDismissLyricsOffset: () -> Unit,
+    lyricsOffsetOpen: Boolean = false,
+    onDismissLyricsOffset: () -> Unit = {},
+    audioEffectsOpen: Boolean = false,
+    onDismissAudioEffects: () -> Unit = {},
     /** The width of the window the player is in — see [fullBleedArtworkAvailable]. */
     windowWidth: Dp,
     /**
@@ -1037,10 +1039,11 @@ fun NowPlayingScreen(
     // re-ran this whole screen on the frame it starts to animate in.
     val currentMenuOpen by rememberUpdatedState(menuOpen)
     val currentLyricsOffsetOpen by rememberUpdatedState(lyricsOffsetOpen)
+    val currentAudioEffectsOpen by rememberUpdatedState(audioEffectsOpen)
     val overlayOpen = remember {
         derivedStateOf {
             currentMenuOpen() || showAudioPipeline || showCast || showAudioOutput || showVideoQuality ||
-                showLyricsProviders || showListenTogetherMembers || lyricsShare != null || currentLyricsOffsetOpen
+                showLyricsProviders || showListenTogetherMembers || lyricsShare != null || currentLyricsOffsetOpen || currentAudioEffectsOpen
         }
     }
     val lyricsShareEnabled = lyricsShareAvailable
@@ -1113,6 +1116,8 @@ fun NowPlayingScreen(
     PlayerBackHandler(enabled = showCast) { showCast = false }
 
     PlayerBackHandler(enabled = lyricsOffsetOpen, onBack = onDismissLyricsOffset)
+
+    PlayerBackHandler(enabled = audioEffectsOpen, onBack = onDismissAudioEffects)
 
     // Both of these sit ahead of [lyricsOpen]'s own handler — see the note on
     // the queue above — because both are drawn *over* the panel rather than
@@ -1653,6 +1658,12 @@ fun NowPlayingScreen(
             LyricsOffsetSheet(
                 hazeState = playerHaze,
                 onDismiss = onDismissLyricsOffset,
+            )
+        }
+        if (audioEffectsOpen) {
+            PlayerPlatform.host.AudioEffectsSheet(
+                hazeState = playerHaze,
+                onDismiss = onDismissAudioEffects,
             )
         }
         lyricsShare?.let { request ->
@@ -2399,7 +2410,7 @@ fun NowPlayingScreen(
                 // artwork, rather than changing the status-bar glyph colour per cover.
                 // A subview replaces that hero with the blurred artwork backdrop, so it gets
                 // only a modest floor rather than an opaque status-bar surface.
-                val playerSubviewOpen = lyricsOpen || queueOpen || lyricsOffsetOpen ||
+                val playerSubviewOpen = lyricsOpen || queueOpen || lyricsOffsetOpen || audioEffectsOpen ||
                     showAudioPipeline || showCast || showAudioOutput || showVideoQuality || showLyricsProviders ||
                     lyricsShare != null
                 val topGradientAlpha = if (playerSubviewOpen) {

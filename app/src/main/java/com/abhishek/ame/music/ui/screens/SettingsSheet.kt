@@ -85,6 +85,7 @@ import androidx.compose.material.icons.rounded.Wifi
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
+import com.abhishek.ame.music.data.AppUpdateChecker
 import com.abhishek.ame.music.data.lyrics.translationLanguageName
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -538,35 +539,73 @@ fun SettingsScreen(
                 // decides which version of a track gets fetched, the same question
                 // the two rows above answer, and not how one is played back.
                 //
-                // Greyed rather than hidden where the device can't decode E-AC-3.
-                // A missing row reads as a feature the app doesn't have; a disabled
-                // one with a reason under it is the difference between "Ame
-                // has no Atmos" and "this phone has no Dolby decoder", and only the
-                // second is true. The stored preference is left untouched either
-                // way — see [AppSettings.dolbyAtmos].
-                val dolbyAtmosTitle = stringResource(R.string.dolby_atmos)
-                row(dolbyAtmosTitle, "surround", "e-ac-3") {
-                    BypassedByBitPerfect(bitPerfectReady) {
-                        SettingsRow(
-                            iconPainter = painterResource(R.drawable.ic_dolby_atmos),
-                            title = dolbyAtmosTitle,
-                            subtitle = stringResource(
-                                if (dolbyAtmosSupported) {
-                                    R.string.dolby_atmos_subtitle
-                                } else {
-                                    R.string.dolby_atmos_unavailable
-                                },
-                            ),
-                            enabled = dolbyAtmosSupported,
-                            trailing = {
-                                IosSwitch(
-                                    checked = dolbyAtmos && dolbyAtmosSupported,
-                                    onCheckedChange = AppSettings::setDolbyAtmos,
-                                    enabled = dolbyAtmosSupported,
-                                )
-                            },
-                            onClick = { AppSettings.setDolbyAtmos(!dolbyAtmos) },
-                        )
+                // Device-specific spatial audio: auto-detect which system is available.
+                // Different OEMs have different technologies (Dolby, DeepField, Dirac, etc.)
+                // so we show the appropriate toggle based on what this device supports.
+                val spatialAudioType = remember { 
+                    com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.detect(context) 
+                }
+                
+                // Only show if device has some form of spatial audio
+                if (spatialAudioType != com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.SpatialAudioType.NONE) {
+                    val spatialTitle = spatialAudioType.displayName
+                    val spatialSubtitle = spatialAudioType.description
+                    
+                    row(spatialTitle, "surround", "spatial", "3d audio", "deepfield", "dolby", "dirac") {
+                        BypassedByBitPerfect(bitPerfectReady) {
+                            when (spatialAudioType) {
+                                com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.SpatialAudioType.DOLBY_ATMOS -> {
+                                    // Samsung/Xiaomi: Dolby Atmos toggle with branding
+                                    SettingsRow(
+                                        iconPainter = painterResource(R.drawable.ic_dolby_atmos),
+                                        title = spatialTitle,
+                                        subtitle = stringResource(
+                                            if (dolbyAtmosSupported) {
+                                                R.string.dolby_atmos_subtitle
+                                            } else {
+                                                R.string.dolby_atmos_unavailable
+                                            },
+                                        ),
+                                        enabled = dolbyAtmosSupported,
+                                        trailing = {
+                                            IosSwitch(
+                                                checked = dolbyAtmos && dolbyAtmosSupported,
+                                                onCheckedChange = AppSettings::setDolbyAtmos,
+                                                enabled = dolbyAtmosSupported,
+                                            )
+                                        },
+                                        onClick = { AppSettings.setDolbyAtmos(!dolbyAtmos) },
+                                    )
+                                }
+                                com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.SpatialAudioType.DEEPFIELD -> {
+                                    // Vivo/iQOO: Button that opens DeepField panel (NO toggle)
+                                    SettingsRow(
+                                        icon = SfIcons.GraphicEq,
+                                        title = spatialTitle,
+                                        subtitle = "Tap to open DeepField audio settings",
+                                        onClick = { openEqualizer(context, sessionId) },
+                                    )
+                                }
+                                com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.SpatialAudioType.DIRAC -> {
+                                    // OnePlus/Oppo: Dirac button
+                                    SettingsRow(
+                                        icon = SfIcons.GraphicEq,
+                                        title = spatialTitle,
+                                        subtitle = "Tap to open Dirac audio settings",
+                                        onClick = { openEqualizer(context, sessionId) },
+                                    )
+                                }
+                                else -> {
+                                    // Generic spatial audio or Android Spatializer: Button to open system panel
+                                    SettingsRow(
+                                        icon = SfIcons.GraphicEq,
+                                        title = spatialTitle,
+                                        subtitle = spatialSubtitle,
+                                        onClick = { openEqualizer(context, sessionId) },
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -576,6 +615,10 @@ fun SettingsScreen(
             if (!searching) {
                 SettingsCategoryList(onOpen = onOpenSection)
             }
+        }
+
+        if (shows(SettingsCategory.UPDATES)) {
+            UpdatesSettingsContent()
         }
 
         // Its own group rather than rows bolted onto the two above, because a
@@ -854,8 +897,10 @@ fun SettingsScreen(
                     )
                 }
             }
+            // Spatial Audio toggle - Ame's internal stereo widening effect
+            // Works on all devices, though Vivo DeepField may interfere
             val spatialAudioTitle = stringResource(R.string.spatial_audio)
-            row(spatialAudioTitle, "surround", "3d") {
+            row(spatialAudioTitle, "surround", "3d", "spatial") {
                 BypassedByBitPerfect(bitPerfectReady) {
                     SettingsRow(
                         icon = SfIcons.SurroundSound,
@@ -2629,6 +2674,7 @@ internal fun SegmentedControl(
  * they stay on the main page, where they always were.
  */
 enum class SettingsCategory(@param:StringRes val title: Int) {
+    UPDATES(R.string.app_update),
     GLASS(R.string.liquid_glass),
     DOWNLOADS(R.string.downloads),
     PLAYBACK(R.string.playback),
@@ -2644,6 +2690,7 @@ enum class SettingsCategory(@param:StringRes val title: Int) {
 
     val icon: ImageVector
         get() = when (this) {
+            UPDATES -> SfIcons.Cached
             GLASS -> SfIcons.AutoAwesome
             DOWNLOADS -> SfIcons.Download
             PLAYBACK -> SfIcons.PlayCircle
@@ -2671,13 +2718,20 @@ enum class SettingsChoiceKind(@param:StringRes val title: Int) {
 /** The main page's list of categories: a glyph and a name each, and a chevron into it. */
 @Composable
 private fun SettingsCategoryList(onOpen: (SettingsCategory) -> Unit) {
+    val updateAvailable by AppUpdateChecker.available.collectAsStateWithLifecycle()
     SettingsGroup {
         val rootCategories = remember { SettingsCategory.entries.filter { it != SettingsCategory.GLASS } }
         rootCategories.forEachIndexed { index, category ->
             if (index > 0) RowDivider()
+            val badge = if (category == SettingsCategory.UPDATES && updateAvailable != null) "1" else null
+            val value = if (category == SettingsCategory.UPDATES && updateAvailable != null) {
+                "v${updateAvailable?.version}"
+            } else null
             SettingsRow(
                 icon = category.icon,
                 title = stringResource(category.title),
+                value = value,
+                badge = badge,
                 onClick = { onOpen(category) },
             )
         }

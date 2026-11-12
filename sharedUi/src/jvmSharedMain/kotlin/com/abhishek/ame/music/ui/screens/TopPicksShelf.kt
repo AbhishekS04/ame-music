@@ -50,6 +50,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import com.abhishek.ame.music.data.canvas.CanvasArtwork
 import com.abhishek.ame.music.ui.AppUi
+import com.abhishek.ame.music.ui.graphics.rememberSkyShader
+import com.abhishek.ame.music.ui.graphics.rememberPrismShader
 import com.abhishek.ame.music.ui.player.CanvasArtworkPlayer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -81,6 +83,8 @@ import androidx.compose.ui.graphics.PathOperation
 import kotlin.math.exp
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.CornerRadius
+import kotlin.math.hypot
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.scale
@@ -116,7 +120,10 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.cos
+import kotlin.math.floor
+import kotlin.math.pow
 import kotlin.math.sin
 
 /*
@@ -162,30 +169,33 @@ internal fun TopPicksShelf(
         snapshotFlow { rowState.isScrollInProgress to clipOwner(rowState.layoutInfo, hasClip) }
             .collect { (scrolling, next) -> if (!scrolling) owner = next }
     }
-    Column(Modifier.padding(bottom = 26.dp)) {
-        SectionHeader(stringResource(Res.string.top_picks_for_you))
-        BoxWithConstraints {
-            val cardWidth = topPickWidth(maxWidth)
-            PausedWhileScrolling(rowState) {
-                ShelfRow(
-                    contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    state = rowState,
-                ) {
-                    itemsIndexed(picks, key = { index, pick -> "$index:${pick.kind}:${pick.title}" }) { index, pick ->
-                        CompositionLocalProvider(
-                            LocalClipSlot provides ClipSlot(
-                                mayPlay = index == owner,
-                                onClipFound = { found -> hasClip[index] = found },
-                            ),
-                        ) {
-                            TopPickCard(
-                                pick = pick,
-                                listenerName = listenerName,
-                                onClick = onClick,
-                                onLongPress = onLongPress?.takeIf { pick.kind == TopPickKind.LATEST_RELEASE },
-                                modifier = Modifier.width(cardWidth),
-                            )
+    val timeState = rememberContinuousTime()
+    CompositionLocalProvider(LocalContinuousTime provides timeState) {
+        Column(Modifier.padding(bottom = 26.dp)) {
+            SectionHeader(stringResource(Res.string.top_picks_for_you))
+            BoxWithConstraints {
+                val cardWidth = topPickWidth(maxWidth)
+                PausedWhileScrolling(rowState) {
+                    ShelfRow(
+                        contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        state = rowState,
+                    ) {
+                        itemsIndexed(picks, key = { index, pick -> "$index:${pick.kind}:${pick.title}" }) { index, pick ->
+                            CompositionLocalProvider(
+                                LocalClipSlot provides ClipSlot(
+                                    mayPlay = index == owner,
+                                    onClipFound = { found -> hasClip[index] = found },
+                                ),
+                            ) {
+                                TopPickCard(
+                                    pick = pick,
+                                    listenerName = listenerName,
+                                    onClick = onClick,
+                                    onLongPress = onLongPress?.takeIf { pick.kind == TopPickKind.LATEST_RELEASE },
+                                    modifier = Modifier.width(cardWidth),
+                                )
+                            }
                         }
                     }
                 }
@@ -293,12 +303,12 @@ private fun TopPickCard(
         when (pick.kind) {
             TopPickKind.PERSONAL_STATION -> {
                 PersonalStationArt(Modifier.fillMaxSize())
-                eyebrowColor = Color(0xFFFFD2DA)
+                eyebrowColor = Color(0xFFB9C8F2)
                 branded = true
             }
             TopPickKind.DISCOVERY_STATION -> {
                 DiscoveryStationArt(Modifier.fillMaxSize())
-                eyebrowColor = Color(0xFFCDBDFF)
+                eyebrowColor = Color(0xFFFCE7F3)
                 branded = true
             }
             TopPickKind.MOOD -> {
@@ -684,17 +694,44 @@ private fun loopPhase(periodMs: Int): State<Float> {
     return phase
 }
 
+/** Shared continuous monotonic time counter for shelf animations, tied directly to VSYNC. */
+private val LocalContinuousTime = compositionLocalOf<State<Float>> { mutableFloatStateOf(0f) }
+
+@Composable
+private fun rememberContinuousTime(): State<Float> {
+    val timeState = remember { mutableFloatStateOf(0f) }
+    val running = LocalArtworkMotion.current
+    val scrolling = LocalArtworkScrolling.current
+    LaunchedEffect(running, scrolling) {
+        if (!running) return@LaunchedEffect
+        var last = Long.MIN_VALUE
+        while (true) {
+            if (scrolling()) {
+                snapshotFlow { scrolling() }.first { !it }
+                last = Long.MIN_VALUE
+            }
+            withFrameNanos { now ->
+                if (last != Long.MIN_VALUE) {
+                    val dt = ((now - last) / 1_000_000_000f).coerceIn(0f, 0.05f)
+                    timeState.floatValue += dt
+                }
+                last = now
+            }
+        }
+    }
+    return timeState
+}
+
+private fun smoothstep(x: Float): Float {
+    val t = x.coerceIn(0f, 1f)
+    return t * t * (3f - 2f * t)
+}
+
 /**
- * Keeps a card's drawn artwork as a finished picture between its own frames.
- *
- * With its loop held still for a scroll or for Now Playing passing over, a card
- * still has to be put back on screen on every frame of that movement, and once
- * more for each blur sampling the page. Drawn outright, that was every one of
- * the card's stacked gradient paths each time, for a picture that hadn't
- * changed. As a layer it is one texture, and a frame of the loop itself redraws
- * this canvas without re-recording the card around it.
+ * Keeps a card's drawn artwork as a hardware display list layer without
+ * allocating heavy offscreen frame buffers.
  */
-private val RetainedArt = Modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+private val RetainedArt = Modifier.graphicsLayer()
 
 private fun wave(phase: Float, offset: Float): Float = sin(2f * PI.toFloat() * (phase + offset))
 
@@ -714,194 +751,309 @@ private class SizeCache<T : Any>(private val build: (Size) -> T) {
     }
 }
 
-/** Outermost to innermost: where each arrow's tip rests, and its fold's two tones. */
-private val PersonalLayers = listOf(
-    Triple(1.00f, Color(0xFFFE5E83), Color(0xFFFA6196)),
-    Triple(0.66f, Color(0xFFFE5065), Color(0xFFFC657C)),
-    Triple(0.43f, Color(0xFFFB594C), Color(0xFFFC776D)),
-    Triple(0.21f, Color(0xFFFB6729), Color(0xFFF98A48)),
-)
-
-private class PersonalBrushes(val background: Brush, val layers: List<Brush>)
-
 /**
- * The personal station: arrows nested inside one another, all on the left
- * edge and pointing right, warm orange in the middle out to pink. Their tips
- * drift in and out of step, so the stack seems to fold and unfold.
+ * Abhishek's Station (Personal Station) — FeralUI Animated "Night sky" Stratified Atmosphere.
+ *
+ * Soft, billowing, ethereal celestial cloudscape matching FeralUI "Night sky":
+ * - Upper third: Luminous, pearlescent Ice Hanada (#B9C8F2) and moonlit pearl (#F4F8FF) cloud bank
+ *   gently undulating across the sky.
+ * - Middle third: Deep smoky atmospheric descent through Glazed Azure (#6E7FBF),
+ *   Clear Hanada (#4A5AA0), and Storm Blue (#33406E).
+ * - Lower half: Deep oceanic indigo Hanada fading into Midnight Abyss (#000032) for crisp text contrast.
+ *
+ * Exact palette stops and parameters from feralui.dev Night sky:
+ * - ICE HANADA (#B9C8F2) at position 0.125
+ * - GLAZED AZURE (#6E7FBF) at position 0.375
+ * - CLEAR HANADA (#4A5AA0) at position 0.625
+ * - STORM BLUE (#33406E) at position 0.875
+ * - Base: MIDNIGHT ABYSS (#000032)
+ * - speed: 14, startT: 26.09f
  */
+private val NightSkyStops = listOf(
+    Color(0xFFB9C8F2), // ICE HANADA (0.125)
+    Color(0xFF6E7FBF), // GLAZED AZURE (0.375)
+    Color(0xFF4A5AA0), // CLEAR HANADA (0.625)
+    Color(0xFF33406E), // STORM BLUE (0.875)
+)
+private val NightSkyMidnight = Color(0xFF000032) // Midnight Abyss base
+private val NightSkyPearl = Color(0xFFF4F8FF)    // Pearlescent moonlit cloud highlight
+
 @Composable
-private fun PersonalStationArt(modifier: Modifier) {
-    val phase by loopPhase(STATION_PERIOD_MS)
-    val path = remember { Path() }
-    val brushes = remember {
-        SizeCache { size ->
-            PersonalBrushes(
-                background = Brush.horizontalGradient(
-                    0f to Color(0xFFF7334F),
-                    0.38f to Color(0xFFFA6094),
-                    0.75f to Color(0xFFF02A4A),
-                    1f to Color(0xFFEE213D),
-                ),
-                // Each fold's shading runs to where its tip rests; the tip's
-                // swing is small enough that the shading needn't chase it.
-                layers = PersonalLayers.map { (rest, deep, light) ->
-                    Brush.horizontalGradient(listOf(deep, light), startX = 0f, endX = size.width * rest)
-                },
+private fun PersonalStationArt(modifier: Modifier = Modifier) {
+    val skyShader = rememberSkyShader(
+        tonesHigh = NightSkyStops[0], // ICE HANADA (#B9C8F2)
+        tonesMain = NightSkyStops[1], // GLAZED AZURE (#6E7FBF)
+        tonesMid  = NightSkyStops[2], // CLEAR HANADA (#4A5AA0)
+        tonesLow  = NightSkyStops[3], // STORM BLUE (#33406E)
+        scale = 42f,
+        distortion = 46f,
+        swirl = 28f,
+    )
+    val timeState = LocalContinuousTime.current
+    Canvas(modifier.then(RetainedArt)) {
+        if (skyShader != null) {
+            val t = timeState.value * (14f / 100f) * 1.2f + 26.09f
+            skyShader.updateTimeAndSize(t, size.width, size.height)
+            drawRect(skyShader.brush)
+        } else {
+            // Base Stratified Celestial Atmosphere Gradient (fallback)
+            drawRect(
+                brush = Brush.verticalGradient(
+                    0.00f to Color(0xFF91A0DA),
+                    0.08f to Color(0xFFAFBEE8),
+                    0.15f to Color(0xFFB9C8F2),
+                    0.22f to Color(0xFFB4C3F0),
+                    0.30f to Color(0xFF8C9BD7),
+                    0.36f to Color(0xFF6470B4),
+                    0.42f to Color(0xFF414887),
+                    0.48f to Color(0xFF2D325E),
+                    0.55f to Color(0xFF191C41),
+                    0.65f to Color(0xFF111339),
+                    0.75f to Color(0xFF0A0C32),
+                    0.85f to NightSkyMidnight,
+                    1.00f to NightSkyMidnight,
+                )
             )
         }
-    }
-    Canvas(modifier.then(RetainedArt)) {
-        val w = size.width
-        val h = size.height
-        val cached = brushes.get(size)
-        drawRect(cached.background)
-        PersonalLayers.forEachIndexed { index, (rest, _, _) ->
-            // The outer arrow is pinned to the card's edge; the inner ones swing.
-            val tip = if (index == 0) rest else rest + 0.07f * wave(phase, index * 0.19f)
-            path.reset()
-            path.moveTo(0f, 0f)
-            path.lineTo(w * tip, h / 2f)
-            path.lineTo(0f, h)
-            path.close()
-            drawPath(path, cached.layers[index])
-        }
+
+        // Contrast foot scrim for crystal clear typography legibility
+        drawRect(
+            brush = Brush.verticalGradient(
+                0.60f to Color.Transparent,
+                1.00f to NightSkyMidnight.copy(alpha = 0.82f),
+            )
+        )
     }
 }
 
-private val DiscoveryTopColors = listOf(
-    Color(0xFF3A2496), Color(0xFF2F4FB0), Color(0xFF3B30A0),
-    Color(0xFF2E7FB8), Color(0xFF27988A), Color(0xFF3C8DA8),
-)
-private val DiscoveryBottomColors = listOf(
-    Color(0xFF3A2496), Color(0xFF333EA4), Color(0xFF2F62B6),
-    Color(0xFF288B99), Color(0xFF3477BA), Color(0xFF42A296),
-)
-
-/** Where each shard meets the edge, as a share of the width; the inner ones swing. */
-private val DiscoveryEdges = listOf(0f, 0.24f, 0.44f, 0.62f, 0.78f, 0.91f, 1.02f)
-
-private class DiscoveryBrushes(val background: Brush, val top: List<Brush>, val bottom: List<Brush>, val arrow: Brush)
-
 /**
- * The discovery station: a violet arrow across the card with a fan of blue,
- * indigo and teal shards opening around its tip, which sweep slowly to and fro.
+ * Discovery Station — FeralUI Animated "Cherry pop" PRISM Valley Gradient.
+ *
+ * Cascading V-shaped canyon of vertical slats expanding smoothly outward,
+ * flowing from deep Ink Purple at the top through Dusk Crimson and Persimmon Red
+ * into glowing Soft Crimson and Peach Silk at the bottom.
+ *
+ * Exact palette from feralui.dev Cherry pop:
+ * - INK PURPLE (#521A37) at position 0.1
+ * - DUSK CRIMSON (#9C204C) at position 0.3
+ * - PERSIMMON RED (#E24762) at position 0.5
+ * - SOFT CRIMSON (#F8968E) at position 0.7
+ * - PEACH SILK (#F7D0B5) at position 0.9
  */
-@Composable
-private fun DiscoveryStationArt(modifier: Modifier) {
-    val phase by loopPhase(STATION_PERIOD_MS)
-    val path = remember { Path() }
-    val brushes = remember {
-        SizeCache { size ->
-            val apex = Offset(size.width, size.height / 2f)
-            fun shards(edgeY: Float, colors: List<Color>) = (0 until DiscoveryEdges.lastIndex).map { i ->
-                val mid = size.width * (DiscoveryEdges[i] + DiscoveryEdges[i + 1]) / 2f
-                val base = colors[i % colors.size]
-                Brush.linearGradient(listOf(lerp(base, Color.White, 0.10f), base), start = apex, end = Offset(mid, edgeY))
-            }
-            DiscoveryBrushes(
-                background = Brush.linearGradient(
-                    listOf(Color(0xFF2A869F), Color(0xFF3477BA)),
-                    Offset.Zero,
-                    Offset(size.width, size.height),
-                ),
-                top = shards(0f, DiscoveryTopColors),
-                bottom = shards(size.height, DiscoveryBottomColors),
-                arrow = Brush.horizontalGradient(
-                    0f to Color(0xFF502798),
-                    0.55f to Color(0xFF421C88),
-                    1f to Color(0xFF4A2292),
-                ),
-            )
+private val CherryPopStops = listOf(
+    Color(0xFF521A37), // INK PURPLE (0.1)
+    Color(0xFF9C204C), // DUSK CRIMSON (0.3)
+    Color(0xFFE24762), // PERSIMMON RED (0.5)
+    Color(0xFFF8968E), // SOFT CRIMSON (0.7)
+    Color(0xFFF7D0B5), // PEACH SILK (0.9)
+)
+private val CherryPopPositions = floatArrayOf(0.1f, 0.3f, 0.5f, 0.7f, 0.9f)
+
+private fun sampleCherryPop(t: Float): Color {
+    val clamped = t.coerceIn(0f, 1f)
+    if (clamped <= CherryPopPositions[0]) return CherryPopStops[0]
+    if (clamped >= CherryPopPositions[4]) return CherryPopStops[4]
+    for (i in 0 until 4) {
+        val p0 = CherryPopPositions[i]
+        val p1 = CherryPopPositions[i + 1]
+        if (clamped in p0..p1) {
+            val fraction = (clamped - p0) / (p1 - p0)
+            return lerp(CherryPopStops[i], CherryPopStops[i + 1], fraction)
         }
     }
+    return CherryPopStops[4]
+}
+
+@Composable
+private fun DiscoveryStationArt(modifier: Modifier = Modifier) {
+    val prismShader = rememberPrismShader()
+    val timeState = LocalContinuousTime.current
+
     Canvas(modifier.then(RetainedArt)) {
         val w = size.width
         val h = size.height
-        val cached = brushes.get(size)
-        drawRect(cached.background)
-        fun fan(edgeY: Float, shards: List<Brush>, offset: Float) {
-            var previous = DiscoveryEdges[0]
-            for (i in 1..DiscoveryEdges.lastIndex) {
-                val rest = DiscoveryEdges[i]
-                val edge = if (i == DiscoveryEdges.lastIndex) rest else rest + 0.06f * wave(phase, offset + i * 0.11f)
-                path.reset()
-                path.moveTo(w, h / 2f)
-                path.lineTo(w * previous, edgeY)
-                path.lineTo(w * edge, edgeY)
-                path.close()
-                drawPath(path, shards[i - 1])
-                previous = edge
+        val oTime = timeState.value * (40f / 100f) * 1.2f + 20.75f
+
+        if (prismShader != null) {
+            prismShader.updateTimeAndSize(oTime, w, h)
+            drawRect(prismShader.brush)
+        } else {
+            // 1. Deep Ink Purple base field
+            drawRect(CherryPopStops[0])
+
+            // 2. FeralUI Prism Valley slats (fallback)
+            val a = 11f
+            val c = oTime * 0.48f
+            val pFloor = floor(-c).toInt()
+            val gCeil = ceil(a - c).toInt()
+            val en = 24
+
+            for (ySign in intArrayOf(-1, 1)) {
+                for (b in pFloor until gCeil) {
+                    val bFloat = b.toFloat()
+                    val F = ((bFloat + c) / a).coerceAtLeast(0f)
+                    val C = ((bFloat + 1f + c) / a).coerceAtMost(1f)
+                    if (C <= F) continue
+
+                    val E = if (ySign < 0) (1f - C) / 2f else (1f + F) / 2f
+                    val L = if (ySign < 0) (1f - F) / 2f else (1f + C) / 2f
+                    val D = (E + L) / 2f
+                    val P = (D - 0.5f) * 2f
+                    val m = 0.5f - 0.5f * cos(abs(P).coerceAtMost(1f) * PI.toFloat())
+                    val S = 1f - m // valley shape
+                    val v = 0.015f * sin(oTime * 0.32f)
+                    val R = 0.28f + S * 0.36f + v
+                    val I = 0.025f * sin(bFloat * 1.8f) + 0.012f * sin(bFloat * 0.73f + oTime * 0.24f)
+                    val T = 0.74f
+
+                    val slatColors = List(en) { le ->
+                        val O = le / (en - 1f)
+                        val underscore = smoothstep((O - R + 0.22f) / T)
+                        val W = 0.02f
+                        val H = (W + (0.98f - W) * underscore + I).coerceIn(0f, 1f)
+                        sampleCherryPop(H)
+                    }
+
+                    val slatBrush = Brush.verticalGradient(
+                        colors = slatColors,
+                        startY = 0f,
+                        endY = h,
+                    )
+
+                    val slatLeft = E * w
+                    val slatW = (L - E) * w + 0.75f // Overlap by 0.75px to ensure no seam gaps
+                    drawRect(
+                        brush = slatBrush,
+                        topLeft = Offset(slatLeft, 0f),
+                        size = Size(slatW, h),
+                    )
+                }
             }
         }
-        fan(0f, cached.top, 0f)
-        fan(h, cached.bottom, 0.5f)
 
-        // The arrow itself, with a darker inner arrow that breathes.
-        path.reset()
-        path.moveTo(0f, 0f)
-        path.lineTo(w, h / 2f)
-        path.lineTo(0f, h)
-        path.close()
-        drawPath(path, cached.arrow)
-        val inner = 0.08f + 0.04f * wave(phase, 0.25f)
-        path.reset()
-        path.moveTo(0f, h * inner)
-        path.lineTo(w * (0.9f - inner), h / 2f)
-        path.lineTo(0f, h * (1f - inner))
-        path.close()
-        drawPath(path, DiscoveryInnerArrow)
+        // Subtle foot scrim to ensure caption text is crisp and readable over peach silk
+        drawRect(
+            brush = Brush.verticalGradient(
+                0.60f to Color.Transparent,
+                1.00f to Color(0xFF1E0713).copy(alpha = 0.52f),
+            )
+        )
     }
 }
-
-private val DiscoveryInnerArrow = Color(0xFF3C1981).copy(alpha = 0.35f)
 
 // ---- Mood for You -------------------------------------------------------------
 
 /**
- * Apple Music's moods as they look now: a flat colour and one pale outline
- * emblem that moves. The seven Find Your Mood emblems are Apple's own — the
- * bolt strobes, the stones sway, the spiral unwinds, the star twists, the
- * rings ripple in, the dashed heart's dashes march and the heart beats, each
- * on the loop length of Apple's clip. Apple draws its other activities as
- * photographs, which this app can't use, so they get emblems in the same
- * hand instead.
+ * FeralUI animated Sky gradients for Mood cards.
+ * Uses procedural atmospheric fluid noise with custom themed palettes:
+ * - Blue sky: Serene mist and river indigo (Relax, Chill, Feeling Blue, Commuting, Alone Time)
+ * - Ink sky: Minimal lunar pearl and cloud grey (Focus, Work, Sleep, After Hours)
+ * - Night sky: Midnight celestial hanada (Evening, Wellbeing)
+ * - Emerald sky: Lush organic verdant green (Energy, Fitness, Sports, Motivation, Outdoors)
+ * - Golden Dawn sky: Radiant sunny amber (Feel Good, Morning, Summertime, Weekend, Cooking)
+ * - Rose Sunset sky: Ethereal magenta blush (Love, Party, Social, Gaming, Home)
+ * - Crimson Dusk sky: Dramatic scarlet dusk (Heartbreak, Holiday)
  */
 private class MoodStyle(
-    val background: Color,
-    val stroke: Color,
-    val periodMs: Int,
-    val eyebrow: Color = lerp(stroke, Color.White, 0.35f),
+    val tonesHigh: Color,
+    val tonesMain: Color,
+    val tonesMid: Color,
+    val tonesLow: Color,
+    val speed: Float = 20f,
+    val eyebrow: Color = tonesHigh,
 )
 
 private fun TopPickMood.style(): MoodStyle = when (this) {
-    TopPickMood.ENERGY -> MoodStyle(Color(0xFF1EBD38), Color(0xFFE2F6A2), 3_000, Color(0xFFE8FF9C))
-    TopPickMood.RELAX -> MoodStyle(Color(0xFF31AFF3), Color(0xFFB4E9FF), 5_600, Color(0xFFD6F3FF))
-    TopPickMood.FEELING_BLUE -> MoodStyle(Color(0xFF253AB2), Color(0xFF6CC4FF), 3_700, Color(0xFFA9DBFF))
-    TopPickMood.FEEL_GOOD -> MoodStyle(Color(0xFFF2A900), Color(0xFFFFE8A0), 4_000, Color(0xFFFFF27A))
-    TopPickMood.FOCUS -> MoodStyle(Color(0xFFF28400), Color(0xFFFFD6A4), 3_600, Color(0xFFFFE2B8))
-    TopPickMood.HEARTBREAK -> MoodStyle(Color(0xFFEA3520), Color(0xFFFFA690), 2_700, Color(0xFFFFC9BC))
-    TopPickMood.LOVE -> MoodStyle(Color(0xFFF34CA0), Color(0xFFFFB8DC), 1_700, Color(0xFFFFD0EA))
-    TopPickMood.AFTER_HOURS -> MoodStyle(Color(0xFF3A1F78), Color(0xFFC9B6FF), 4_500)
-    TopPickMood.ALONE_TIME -> MoodStyle(Color(0xFF2C6E8C), Color(0xFFA9E2F5), 4_000)
-    TopPickMood.CHILL -> MoodStyle(Color(0xFF138A86), Color(0xFFA6F0E6), 5_000)
-    TopPickMood.COMMUTING -> MoodStyle(Color(0xFF17855F), Color(0xFFA8EFD0), 2_400)
-    TopPickMood.EATING_COOKING -> MoodStyle(Color(0xFFD9621A), Color(0xFFFFD3A8), 3_200)
-    TopPickMood.EVENING -> MoodStyle(Color(0xFF2A3A8C), Color(0xFFB8C6FF), 6_000)
-    TopPickMood.FITNESS -> MoodStyle(Color(0xFF8DB014), Color(0xFFEFFFA8), 2_000)
-    TopPickMood.GAMING -> MoodStyle(Color(0xFF239A2A), Color(0xFFB8FFB0), 6_000)
-    TopPickMood.HOME -> MoodStyle(Color(0xFF0E8A6C), Color(0xFFA8F2DB), 4_000)
-    TopPickMood.MORNING -> MoodStyle(Color(0xFFF08C1A), Color(0xFFFFE2A6), 5_000)
-    TopPickMood.MOTIVATION -> MoodStyle(Color(0xFFC01E4A), Color(0xFFFFB3C6), 1_800)
-    TopPickMood.OUTDOORS -> MoodStyle(Color(0xFF4C8A1E), Color(0xFFD4F5A8), 6_000)
-    TopPickMood.PARTY -> MoodStyle(Color(0xFFC2287A), Color(0xFFFFC0E0), 3_000)
-    TopPickMood.SLEEP -> MoodStyle(Color(0xFF26266E), Color(0xFFC2C6FF), 4_500)
-    TopPickMood.SOCIAL -> MoodStyle(Color(0xFFE0507A), Color(0xFFFFD0DE), 3_000)
-    TopPickMood.SPORTS -> MoodStyle(Color(0xFF1C6CD0), Color(0xFFB8D8FF), 3_000)
-    TopPickMood.SUMMERTIME -> MoodStyle(Color(0xFFFF8C00), Color(0xFFFFE6A8), 8_000)
-    TopPickMood.HOLIDAY -> MoodStyle(Color(0xFFC62828), Color(0xFFFFC8C8), 8_000)
-    TopPickMood.WEEKEND -> MoodStyle(Color(0xFF7A3CC2), Color(0xFFE2CCFF), 2_400)
-    TopPickMood.WELLBEING -> MoodStyle(Color(0xFF36A98A), Color(0xFFC6F7E6), 5_000)
-    TopPickMood.WORK -> MoodStyle(Color(0xFF3E63C9), Color(0xFFC4D2FF), 2_000)
+    // 1. Blue sky (FeralUI: #E6F2FF, #B3D9FF, #80B3FF, #6699E6, speed 22)
+    TopPickMood.RELAX,
+    TopPickMood.CHILL,
+    TopPickMood.FEELING_BLUE,
+    TopPickMood.COMMUTING,
+    TopPickMood.ALONE_TIME -> MoodStyle(
+        tonesHigh = Color(0xFFE6F2FF),
+        tonesMain = Color(0xFFB3D9FF),
+        tonesMid  = Color(0xFF80B3FF),
+        tonesLow  = Color(0xFF6699E6),
+        speed = 22f,
+        eyebrow = Color(0xFFB3D9FF),
+    )
+
+    // 2. Ink sky (FeralUI: #F2F2F0, #C4C6C9, #8E9094, #55585E, speed 24)
+    TopPickMood.FOCUS,
+    TopPickMood.WORK,
+    TopPickMood.SLEEP,
+    TopPickMood.AFTER_HOURS -> MoodStyle(
+        tonesHigh = Color(0xFFF2F2F0),
+        tonesMain = Color(0xFFC4C6C9),
+        tonesMid  = Color(0xFF8E9094),
+        tonesLow  = Color(0xFF55585E),
+        speed = 24f,
+        eyebrow = Color(0xFFE2E4E8),
+    )
+
+    // 3. Night sky (FeralUI: #B9C8F2, #6E7FBF, #4A5AA0, #33406E, speed 14)
+    TopPickMood.EVENING,
+    TopPickMood.WELLBEING -> MoodStyle(
+        tonesHigh = Color(0xFFB9C8F2),
+        tonesMain = Color(0xFF6E7FBF),
+        tonesMid  = Color(0xFF4A5AA0),
+        tonesLow  = Color(0xFF33406E),
+        speed = 14f,
+        eyebrow = Color(0xFFB9C8F2),
+    )
+
+    // 4. Emerald sky (Vibrant Verdant: #EDFFEB, #9AEFB0, #3CC869, #15632E, speed 20)
+    TopPickMood.ENERGY,
+    TopPickMood.FITNESS,
+    TopPickMood.SPORTS,
+    TopPickMood.MOTIVATION,
+    TopPickMood.OUTDOORS -> MoodStyle(
+        tonesHigh = Color(0xFFEDFFEB),
+        tonesMain = Color(0xFF9AEFB0),
+        tonesMid  = Color(0xFF3CC869),
+        tonesLow  = Color(0xFF15632E),
+        speed = 20f,
+        eyebrow = Color(0xFFB8FFCE),
+    )
+
+    // 5. Golden Dawn sky (Feel-good Sunrise: #FFFDEB, #FFDE75, #FFA020, #B84805, speed 18)
+    TopPickMood.FEEL_GOOD,
+    TopPickMood.MORNING,
+    TopPickMood.SUMMERTIME,
+    TopPickMood.WEEKEND,
+    TopPickMood.EATING_COOKING -> MoodStyle(
+        tonesHigh = Color(0xFFFFFDEB),
+        tonesMain = Color(0xFFFFDE75),
+        tonesMid  = Color(0xFFFFA020),
+        tonesLow  = Color(0xFFB84805),
+        speed = 18f,
+        eyebrow = Color(0xFFFFE8A0),
+    )
+
+    // 6. Rose Sunset sky (Romantic / Euphoric: #FFE8F5, #FFA6D8, #E63A98, #7A1050, speed 20)
+    TopPickMood.LOVE,
+    TopPickMood.PARTY,
+    TopPickMood.SOCIAL,
+    TopPickMood.GAMING,
+    TopPickMood.HOME -> MoodStyle(
+        tonesHigh = Color(0xFFFFE8F5),
+        tonesMain = Color(0xFFFFA6D8),
+        tonesMid  = Color(0xFFE63A98),
+        tonesLow  = Color(0xFF7A1050),
+        speed = 20f,
+        eyebrow = Color(0xFFFFB8DC),
+    )
+
+    // 7. Crimson Dusk sky (Dramatic / Deep Scarlet: #FFEBE8, #FFA592, #E83A30, #6E1010, speed 16)
+    TopPickMood.HEARTBREAK,
+    TopPickMood.HOLIDAY -> MoodStyle(
+        tonesHigh = Color(0xFFFFEBE8),
+        tonesMain = Color(0xFFFFA592),
+        tonesMid  = Color(0xFFE83A30),
+        tonesLow  = Color(0xFF6E1010),
+        speed = 16f,
+        eyebrow = Color(0xFFFFC0B8),
+    )
 }
 
 internal fun TopPickMood.titleRes() = when (this) {
@@ -966,580 +1118,57 @@ private fun TopPickMood.lineRes() = when (this) {
     TopPickMood.WORK -> Res.string.mood_work_line
 }
 
-/** The emblem's square, in card pixels; [x] and [y] take shares of its side. */
-private class Frame(val left: Float, val top: Float, val side: Float) {
-    fun x(f: Float) = left + side * f
-    fun y(f: Float) = top + side * f
-    fun at(x: Float, y: Float) = Offset(x(x), y(y))
-    val center get() = Offset(x(0.5f), y(0.5f))
-}
-
 /**
- * A mood's artwork. [square] is a Find Your Mood tile, where the emblem sits
- * in the middle; otherwise it's a tall Top Picks card and keeps to the part
- * above the caption.
+ * A mood's artwork — animated FeralUI Sky gradient backdrop.
+ * Smooth undulating organic clouds, completely free of SVGs/emblems.
+ * [square] is a Find Your Mood tile; otherwise it's a tall Top Picks card.
  */
 @Composable
 private fun MoodArt(
     mood: TopPickMood,
     style: MoodStyle,
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
     square: Boolean = false,
-    /** Drawn at rest — see [stillPhase] — and never asks for a frame. */
     still: Boolean = false,
 ) {
-    // Read only in the draw below, so a frame of the loop redraws this canvas
-    // and recomposes nothing.
-    val loop = if (still) null else loopPhase(style.periodMs)
-    val cache = remember(mood) { EmblemCache() }
-    Canvas(if (still) modifier else modifier.then(RetainedArt)) {
-        drawRect(style.background)
-        val w = size.width
-        val h = size.height
-        val f = if (square) {
-            val side = w * 0.70f
-            Frame(left = (w - side) / 2f, top = (h - side) / 2f, side = side)
-        } else {
-            // Most of the card's width, but never down into the caption: the
-            // emblem keeps to the card's top two thirds whatever its proportions.
-            val side = minOf(w * 0.84f, h * 0.62f)
-            Frame(left = (w - side) / 2f, top = h * 0.37f - side / 2f, side = side)
-        }
-        val stroke = cache.stroke((if (square) 2.dp else 2.5.dp).toPx())
-        drawEmblem(mood, f, loop?.value ?: mood.stillPhase(), style.stroke, stroke, cache)
-    }
-}
-
-/**
- * Where in its loop a mood's emblem is drawn when it holds still: its start,
- * where nearly every one is whole and at rest, but for the two that are only
- * part-way drawn there.
- */
-private fun TopPickMood.stillPhase(): Float = when (this) {
-    // The pulse partway along the trace, rather than not yet set out.
-    TopPickMood.FITNESS -> 0.55f
-    // A line half typed, with the cursor showing.
-    TopPickMood.WORK -> 0.6f
-    else -> 0f
-}
-
-private val TAU = 2f * PI.toFloat()
-
-/**
- * One mood card's drawing state, kept across frames: the emblem's fixed
- * outline is built once per card size instead of on every frame of its loop
- * (the spiral alone is 320 points and a path measure), along with the stroke.
- * [scratch] is for the parts that genuinely change frame to frame.
- */
-private class EmblemCache {
-    private var builtFor = Size.Unspecified
-    private val outline = Path()
-    val scratch = Path()
-    val segment = Path()
-    val measure = PathMeasure()
-    var length = 0f
-        private set
-    private var strokeWidth = -1f
-    private var strokeStyle = Stroke()
-
-    /** The mood's fixed outline at [size], built by [build] the first time. */
-    fun outline(size: Size, measured: Boolean = false, build: (Path) -> Unit): Path {
-        if (size != builtFor) {
-            outline.reset()
-            build(outline)
-            if (measured) {
-                measure.setPath(outline, false)
-                length = measure.length
-            }
-            builtFor = size
-        }
-        return outline
-    }
-
-    fun stroke(width: Float): Stroke {
-        if (width != strokeWidth) {
-            strokeWidth = width
-            strokeStyle = Stroke(width = width, cap = StrokeCap.Round, join = StrokeJoin.Round)
-        }
-        return strokeStyle
-    }
-}
-
-private fun DrawScope.drawEmblem(
-    mood: TopPickMood,
-    f: Frame,
-    phase: Float,
-    color: Color,
-    stroke: Stroke,
-    cache: EmblemCache,
-) {
-    val side = f.side
-    val path = cache.scratch
-    val segment = cache.segment
-    when (mood) {
-        TopPickMood.ENERGY -> {
-            val path = cache.outline(size) { bolt(it, f) }
-            // Every loop the bolt flickers: an echo jumps out to either side
-            // of it and fades, like a strobe.
-            val t = (phase - 0.28f) / 0.26f
-            val flash = if (t in 0f..1f) sin(PI.toFloat() * t) else 0f
-            if (flash > 0f) {
-                translate(left = side * 0.07f * flash) { drawPath(path, color.copy(alpha = 0.55f * flash), style = stroke) }
-                translate(left = -side * 0.05f * flash) { drawPath(path, color.copy(alpha = 0.35f * flash), style = stroke) }
-            }
-            drawPath(path, color, style = stroke)
-        }
-        TopPickMood.RELAX -> {
-            // Three stones, balanced and swaying a little out of step.
-            val stones = listOf(
-                Triple(0.17f, 0.44f, 0.18f),
-                Triple(0.38f, 0.68f, 0.28f),
-                Triple(0.66f, 0.84f, 0.36f),
-            )
-            stones.forEachIndexed { index, (cy, width, height) ->
-                val sway = wave(phase, index * 0.22f)
-                val center = Offset(f.x(0.5f + 0.015f * sway), f.y(cy))
-                rotate(degrees = 4f * sway, pivot = center) {
-                    drawOval(
-                        color = color,
-                        topLeft = Offset(center.x - side * width / 2f, center.y - side * height / 2f),
-                        size = Size(side * width, side * height),
-                        style = stroke,
-                    )
-                }
-            }
-        }
-        TopPickMood.FEELING_BLUE -> {
-            cache.outline(size, measured = true) { spiral(it, f) }
-            val length = cache.length
-            // Whole, then unwinding from the top, then drawn back in.
-            val from: Float
-            val to: Float
-            when {
-                phase < 0.35f -> { from = 0f; to = length }
-                phase < 0.8f -> { from = length * easeInOut((phase - 0.35f) / 0.45f); to = length }
-                else -> { from = 0f; to = length * easeInOut((phase - 0.8f) / 0.2f) }
-            }
-            segment.reset()
-            if (to > from) cache.measure.getSegment(from, to, segment, true)
-            drawPath(segment, color, style = stroke)
-        }
-        TopPickMood.FEEL_GOOD -> {
-            val path = cache.outline(size) { star(it, f) }
-            val pulse = 0.9f + 0.1f * (0.5f + 0.5f * cos(TAU * phase))
-            withTransform({
-                rotate(8f * wave(phase, 0f), f.center)
-                scale(pulse, pulse, f.center)
-            }) { drawPath(path, color, style = stroke) }
-        }
-        TopPickMood.FOCUS -> {
-            // Rings drawn in toward the centre: each one shrinks, the innermost
-            // fades away and a new one fades in at the edge.
-            for (i in 0 until 4) {
-                val share = (i + 1 - phase) / 4
-                drawCircle(color.copy(alpha = edgeFade(share)), radius = side * 0.5f * share, center = f.center, style = stroke)
-            }
-        }
-        TopPickMood.HEARTBREAK -> {
-            val path = cache.outline(size) { heart(it, f) }
-            val dash = side * 0.075f
-            val gap = side * 0.055f
-            drawPath(
-                path,
-                color,
-                style = Stroke(
-                    width = stroke.width,
-                    cap = StrokeCap.Round,
-                    join = StrokeJoin.Round,
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(dash, gap), -phase * (dash + gap) * 2f),
-                ),
-            )
-        }
-        TopPickMood.LOVE -> {
-            val path = cache.outline(size) { heart(it, f) }
-            // Lub-dub: two quick swells, then rest.
-            fun bump(at: Float): Float {
-                val d = (phase - at) / 0.06f
-                return exp(-d * d)
-            }
-            val beat = 1f + 0.07f * (bump(0.15f) + 0.7f * bump(0.38f))
-            scale(beat, beat, f.center) { drawPath(path, color, style = stroke) }
-        }
-        TopPickMood.AFTER_HOURS -> {
-            drawPath(cache.outline(size) { crescent(it, f, 0.42f, 0.52f, 0.34f) }, color, style = stroke)
-            listOf(Triple(0.80f, 0.22f, 0.07f), Triple(0.86f, 0.58f, 0.05f), Triple(0.68f, 0.82f, 0.04f))
-                .forEachIndexed { index, (x, y, r) ->
-                    val twinkle = 0.25f + 0.75f * (0.5f + 0.5f * wave(phase, index / 3f))
-                    sparkle(path, f.at(x, y), side * r)
-                    drawPath(path, color.copy(alpha = twinkle), style = stroke)
-                }
-        }
-        TopPickMood.ALONE_TIME -> {
-            // A drop's ripples spreading out across still water.
-            val center = f.at(0.5f, 0.55f)
-            for (i in 0 until 4) {
-                val share = (i + phase) / 4
-                val rx = side * 0.5f * share
-                drawOval(
-                    color.copy(alpha = edgeFade(share)),
-                    topLeft = Offset(center.x - rx, center.y - rx * 0.42f),
-                    size = Size(rx * 2f, rx * 0.84f),
-                    style = stroke,
-                )
-            }
-        }
-        TopPickMood.CHILL -> {
-            // Three waves rolling slowly sideways.
-            clipRect(f.left, f.top, f.x(1f), f.y(1f)) {
-                listOf(0.32f, 0.5f, 0.68f).forEachIndexed { row, y ->
-                    path.reset()
-                    for (k in 0..80) {
-                        val u = k / 80f
-                        val py = y + 0.05f * sin(TAU * (u / 0.33f - phase - row * 0.15f))
-                        if (k == 0) path.moveTo(f.x(u), f.y(py)) else path.lineTo(f.x(u), f.y(py))
-                    }
-                    drawPath(path, color, style = stroke)
-                }
-            }
-        }
-        TopPickMood.COMMUTING -> {
-            // A road to the horizon, its centre line rushing toward you.
-            drawLine(color, f.at(0.06f, 0.95f), f.at(0.44f, 0.14f), stroke.width, StrokeCap.Round)
-            drawLine(color, f.at(0.94f, 0.95f), f.at(0.56f, 0.14f), stroke.width, StrokeCap.Round)
-            drawLine(color, f.at(0.15f, 0.14f), f.at(0.85f, 0.14f), stroke.width, StrokeCap.Round)
-            for (k in 0 until 5) {
-                val u = (k / 5f + phase) % 1f
-                val y0 = 0.18f + 0.77f * u * u
-                val y1 = (y0 + 0.02f + 0.08f * u).coerceAtMost(0.95f)
-                drawLine(color.copy(alpha = edgeFade(u)), f.at(0.5f, y0), f.at(0.5f, y1), stroke.width, StrokeCap.Round)
-            }
-        }
-        TopPickMood.EATING_COOKING -> {
-            // A bowl with steam curling up off it.
-            path.reset()
-            path.arcTo(Rect(f.x(0.12f), f.y(0.25f), f.x(0.88f), f.y(0.95f)), 0f, 180f, true)
-            drawPath(path, color, style = stroke)
-            drawLine(color, f.at(0.05f, 0.6f), f.at(0.95f, 0.6f), stroke.width, StrokeCap.Round)
-            listOf(0.36f, 0.5f, 0.64f).forEachIndexed { index, x ->
-                val rise = (phase + index / 3f) % 1f
-                path.reset()
-                for (k in 0..30) {
-                    val u = k / 30f
-                    val px = x + 0.035f * sin(TAU * (u * 1.2f + rise))
-                    val py = 0.5f - 0.3f * u - 0.1f * rise
-                    if (k == 0) path.moveTo(f.x(px), f.y(py)) else path.lineTo(f.x(px), f.y(py))
-                }
-                drawPath(path, color.copy(alpha = sin(PI.toFloat() * rise)), style = stroke)
-            }
-        }
-        TopPickMood.EVENING -> {
-            // The sun sinking behind the horizon and rising back.
-            val horizon = 0.62f
-            val sink = 0.1f * (0.5f - 0.5f * cos(TAU * phase))
-            clipRect(f.left - side, f.top - side, f.x(2f), f.y(horizon)) {
-                drawCircle(color, radius = side * 0.26f, center = f.at(0.5f, horizon - 0.02f + sink), style = stroke)
-            }
-            drawLine(color, f.at(0.04f, horizon), f.at(0.96f, horizon), stroke.width, StrokeCap.Round)
-            drawLine(color, f.at(0.2f, horizon + 0.11f), f.at(0.8f, horizon + 0.11f), stroke.width, StrokeCap.Round)
-            drawLine(color, f.at(0.36f, horizon + 0.22f), f.at(0.64f, horizon + 0.22f), stroke.width, StrokeCap.Round)
-        }
-        TopPickMood.FITNESS -> {
-            // A heartbeat trace, a bright pulse running along it.
-            val trace = cache.outline(size, measured = true) { out ->
-                listOf(0f to 0.55f, 0.28f to 0.55f, 0.36f to 0.42f, 0.44f to 0.76f, 0.52f to 0.18f, 0.6f to 0.84f, 0.67f to 0.55f, 1f to 0.55f)
-                    .forEachIndexed { index, (x, y) -> if (index == 0) out.moveTo(f.x(x), f.y(y)) else out.lineTo(f.x(x), f.y(y)) }
-            }
-            drawPath(trace, color.copy(alpha = 0.3f), style = stroke)
-            val length = cache.length
-            val head = phase * 1.4f * length
-            segment.reset()
-            cache.measure.getSegment((head - 0.45f * length).coerceAtLeast(0f), head.coerceAtMost(length), segment, true)
-            drawPath(segment, color, style = stroke)
-        }
-        TopPickMood.GAMING -> {
-            // Squares inside squares, turning against each other.
-            listOf(0.9f, 0.62f, 0.34f).forEachIndexed { index, size ->
-                val turn = (if (index % 2 == 0) 1f else -1f) * phase * 90f
-                rotate(turn, f.center) {
-                    drawRect(
-                        color,
-                        topLeft = f.at(0.5f - size / 2f, 0.5f - size / 2f),
-                        size = Size(side * size, side * size),
-                        style = stroke,
-                    )
-                }
-            }
-        }
-        TopPickMood.HOME -> {
-            val house = cache.outline(size) { out ->
-                listOf(0.5f to 0.1f, 0.94f to 0.5f, 0.82f to 0.5f, 0.82f to 0.92f, 0.18f to 0.92f, 0.18f to 0.5f, 0.06f to 0.5f)
-                    .forEachIndexed { index, (x, y) -> if (index == 0) out.moveTo(f.x(x), f.y(y)) else out.lineTo(f.x(x), f.y(y)) }
-                out.close()
-            }
-            drawPath(house, color, style = stroke)
-            drawRect(color, topLeft = f.at(0.41f, 0.66f), size = Size(side * 0.18f, side * 0.26f), style = stroke)
-            // A lamp coming on and off in the window.
-            val glow = 0.5f + 0.5f * wave(phase, 0f)
-            drawRect(color.copy(alpha = 0.15f + 0.45f * glow), topLeft = f.at(0.27f, 0.56f), size = Size(side * 0.1f, side * 0.1f))
-            drawRect(color, topLeft = f.at(0.27f, 0.56f), size = Size(side * 0.1f, side * 0.1f), style = stroke)
-        }
-        TopPickMood.MORNING -> {
-            // The sun coming up, its rays turning.
-            val horizon = 0.72f
-            val sun = f.at(0.5f, horizon - 0.03f - 0.05f * (0.5f + 0.5f * wave(phase, 0f)))
-            clipRect(f.left - side, f.top - side, f.x(2f), f.y(horizon)) {
-                drawCircle(color, radius = side * 0.2f, center = sun, style = stroke)
-                for (k in 0 until 9) {
-                    val angle = PI.toFloat() + (k + 0.5f) * PI.toFloat() / 9f + phase * 0.35f
-                    val a = Offset(sun.x + side * 0.28f * cos(angle), sun.y + side * 0.28f * sin(angle))
-                    val b = Offset(sun.x + side * 0.38f * cos(angle), sun.y + side * 0.38f * sin(angle))
-                    drawLine(color, a, b, stroke.width, StrokeCap.Round)
-                }
-            }
-            drawLine(color, f.at(0.04f, horizon), f.at(0.96f, horizon), stroke.width, StrokeCap.Round)
-        }
-        TopPickMood.MOTIVATION -> {
-            // Chevrons climbing up and out of the frame.
-            for (k in 0 until 3) {
-                val u = (k / 3f + phase) % 1f
-                val y = 0.82f - 0.66f * u
-                path.reset()
-                path.moveTo(f.x(0.22f), f.y(y + 0.17f))
-                path.lineTo(f.x(0.5f), f.y(y))
-                path.lineTo(f.x(0.78f), f.y(y + 0.17f))
-                drawPath(path, color.copy(alpha = sin(PI.toFloat() * u)), style = stroke)
-            }
-        }
-        TopPickMood.OUTDOORS -> {
-            val ridge = cache.outline(size) { out ->
-                listOf(0.02f to 0.86f, 0.36f to 0.36f, 0.55f to 0.62f, 0.7f to 0.44f, 0.98f to 0.86f)
-                    .forEachIndexed { index, (x, y) -> if (index == 0) out.moveTo(f.x(x), f.y(y)) else out.lineTo(f.x(x), f.y(y)) }
-            }
-            drawPath(ridge, color, style = stroke)
-            drawLine(color, f.at(0.02f, 0.86f), f.at(0.98f, 0.86f), stroke.width, StrokeCap.Round)
-            drawCircle(color, radius = side * 0.09f, center = f.at(0.78f + 0.02f * wave(phase, 0.25f), 0.2f + 0.02f * wave(phase, 0f)), style = stroke)
-        }
-        TopPickMood.PARTY -> {
-            // Confetti stars, spinning and popping.
-            listOf(
-                Triple(0.24f, 0.24f, 0.14f), Triple(0.72f, 0.18f, 0.11f), Triple(0.52f, 0.5f, 0.17f),
-                Triple(0.2f, 0.72f, 0.1f), Triple(0.8f, 0.66f, 0.13f), Triple(0.56f, 0.88f, 0.08f),
-            ).forEachIndexed { index, (x, y, r) ->
-                val pop = 0.85f + 0.15f * wave(phase, index / 6f)
-                val spin = (if (index % 2 == 0) 1f else -1f) * phase * 360f
-                fivePointStar(path, f.at(x, y), side * r)
-                withTransform({
-                    rotate(spin, f.at(x, y))
-                    scale(pop, pop, f.at(x, y))
-                }) { drawPath(path, color, style = stroke) }
-            }
-        }
-        TopPickMood.SLEEP -> {
-            // A closed eye, breathing.
-            val breath = 1f + 0.04f * wave(phase, 0f)
-            scale(breath, breath, f.center) {
-                path.reset()
-                path.arcTo(Rect(f.x(0.12f), f.y(0.2f), f.x(0.88f), f.y(0.66f)), 10f, 160f, true)
-                drawPath(path, color, style = stroke)
-                for (k in 0 until 5) {
-                    val angle = (30f + k * 30f) * PI.toFloat() / 180f
-                    val base = Offset(f.x(0.5f + 0.38f * cos(angle)), f.y(0.43f + 0.23f * sin(angle)))
-                    val tip = Offset(base.x + side * 0.08f * cos(angle), base.y + side * 0.1f * sin(angle))
-                    drawLine(color, base, tip, stroke.width, StrokeCap.Round)
-                }
-            }
-        }
-        TopPickMood.SOCIAL -> {
-            // Two circles drifting together and apart.
-            val gap = 0.12f + 0.07f * wave(phase, 0f)
-            drawCircle(color, radius = side * 0.27f, center = f.at(0.5f - gap, 0.5f), style = stroke)
-            drawCircle(color, radius = side * 0.27f, center = f.at(0.5f + gap, 0.5f), style = stroke)
-        }
-        TopPickMood.SPORTS -> {
-            // A ball, spinning.
-            val r = side * 0.44f
-            drawCircle(color, radius = r, center = f.center, style = stroke)
-            path.reset()
-            path.addOval(Rect(f.center, r))
-            clipPath(path) {
-                rotate(phase * 360f, f.center) {
-                    drawCircle(color, radius = r * 0.95f, center = Offset(f.center.x - r * 1.25f, f.center.y), style = stroke)
-                    drawCircle(color, radius = r * 0.95f, center = Offset(f.center.x + r * 1.25f, f.center.y), style = stroke)
-                }
-            }
-        }
-        TopPickMood.SUMMERTIME -> {
-            drawCircle(color, radius = side * 0.22f, center = f.center, style = stroke)
-            rotate(phase * 30f, f.center) {
-                for (k in 0 until 12) {
-                    val angle = k * TAU / 12f
-                    drawLine(
-                        color,
-                        Offset(f.center.x + side * 0.31f * cos(angle), f.center.y + side * 0.31f * sin(angle)),
-                        Offset(f.center.x + side * 0.46f * cos(angle), f.center.y + side * 0.46f * sin(angle)),
-                        stroke.width,
-                        StrokeCap.Round,
-                    )
-                }
-            }
-        }
-        TopPickMood.HOLIDAY -> {
-            // A snowflake, turning.
-            rotate(phase * 60f, f.center) {
-                for (k in 0 until 6) {
-                    val angle = k * TAU / 6f
-                    val dir = Offset(cos(angle), sin(angle))
-                    fun point(d: Float) = Offset(f.center.x + side * d * dir.x, f.center.y + side * d * dir.y)
-                    drawLine(color, f.center, point(0.46f), stroke.width, StrokeCap.Round)
-                    listOf(0.22f, 0.34f).forEach { d ->
-                        val base = point(d)
-                        listOf(-0.785f, 0.785f).forEach { turn ->
-                            val a = angle + turn
-                            drawLine(color, base, Offset(base.x + side * 0.1f * cos(a), base.y + side * 0.1f * sin(a)), stroke.width, StrokeCap.Round)
-                        }
-                    }
-                }
-            }
-        }
-        TopPickMood.WEEKEND -> {
-            // A record spinning.
-            drawCircle(color, radius = side * 0.46f, center = f.center, style = stroke)
-            drawCircle(color, radius = side * 0.16f, center = f.center, style = stroke)
-            drawCircle(color, radius = side * 0.025f, center = f.center)
-            rotate(phase * 360f, f.center) {
-                listOf(0.36f, 0.27f).forEach { r ->
-                    val box = Rect(f.center, side * r)
-                    drawArc(color, 200f, 70f, false, box.topLeft, box.size, style = stroke)
-                    drawArc(color, 20f, 70f, false, box.topLeft, box.size, style = stroke)
-                }
-            }
-        }
-        TopPickMood.WELLBEING -> {
-            // A lotus, its petals opening with each breath.
-            val open = 0.85f + 0.15f * wave(phase, 0f)
-            val base = f.at(0.5f, 0.84f)
-            listOf(-62f, -31f, 0f, 31f, 62f).forEach { angle ->
-                rotate(angle * open, base) {
-                    path.reset()
-                    path.moveTo(base.x, base.y)
-                    path.quadraticTo(f.x(0.66f), f.y(0.52f), f.x(0.5f), f.y(0.14f + (1f - open) * 0.3f))
-                    path.quadraticTo(f.x(0.34f), f.y(0.52f), base.x, base.y)
-                    drawPath(path, color, style = stroke)
-                }
-            }
-        }
-        TopPickMood.WORK -> {
-            // A laptop, a line of text being typed and the cursor blinking.
-            drawRoundRect(
-                color,
-                topLeft = f.at(0.16f, 0.18f),
-                size = Size(side * 0.68f, side * 0.48f),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(side * 0.03f),
-                style = stroke,
-            )
-            drawLine(color, f.at(0.04f, 0.78f), f.at(0.96f, 0.78f), stroke.width, StrokeCap.Round)
-            drawLine(color, f.at(0.16f, 0.66f), f.at(0.04f, 0.78f), stroke.width, StrokeCap.Round)
-            drawLine(color, f.at(0.84f, 0.66f), f.at(0.96f, 0.78f), stroke.width, StrokeCap.Round)
-            val typed = 0.28f + 0.36f * (phase * 1.25f).coerceAtMost(1f)
-            drawLine(color, f.at(0.28f, 0.36f), f.at(0.64f, 0.36f), stroke.width, StrokeCap.Round)
-            drawLine(color, f.at(0.28f, 0.48f), f.at(typed, 0.48f), stroke.width, StrokeCap.Round)
-            if ((phase * 4f).toInt() % 2 == 0) {
-                drawLine(color, f.at(typed + 0.04f, 0.43f), f.at(typed + 0.04f, 0.53f), stroke.width, StrokeCap.Round)
-            }
-        }
-    }
-}
-
-/** Fades a ring in at the outer edge and out at the centre. */
-private fun edgeFade(share: Float): Float = when {
-    share > 0.85f -> (1f - share) / 0.15f
-    share < 0.15f -> share / 0.15f
-    else -> 1f
-}.coerceIn(0f, 1f)
-
-private fun easeInOut(t: Float): Float = 0.5f - 0.5f * cos(PI.toFloat() * t.coerceIn(0f, 1f))
-
-/** Apple's slanted bolt, corner by corner off their artwork. */
-private fun bolt(path: Path, f: Frame) {
-    val points = listOf(
-        0.486f to 0.123f, 0.886f to 0.123f, 0.532f to 0.509f, 0.877f to 0.509f,
-        0.114f to 0.895f, 0.409f to 0.614f, 0.105f to 0.614f,
+    val skyShader = if (still) null else rememberSkyShader(
+        tonesHigh = style.tonesHigh,
+        tonesMain = style.tonesMain,
+        tonesMid  = style.tonesMid,
+        tonesLow  = style.tonesLow,
+        scale = 42f,
+        distortion = 46f,
+        swirl = 28f,
     )
-    path.reset()
-    points.forEachIndexed { index, (x, y) ->
-        if (index == 0) path.moveTo(f.x(x), f.y(y)) else path.lineTo(f.x(x), f.y(y))
-    }
-    path.close()
-}
+    val timeState = LocalContinuousTime.current
 
-/** Four points joined by inward curves. */
-private fun star(path: Path, f: Frame) {
-    path.reset()
-    path.moveTo(f.x(0.5f), f.y(0.06f))
-    path.quadraticTo(f.x(0.56f), f.y(0.44f), f.x(0.94f), f.y(0.5f))
-    path.quadraticTo(f.x(0.56f), f.y(0.56f), f.x(0.5f), f.y(0.94f))
-    path.quadraticTo(f.x(0.44f), f.y(0.56f), f.x(0.06f), f.y(0.5f))
-    path.quadraticTo(f.x(0.44f), f.y(0.44f), f.x(0.5f), f.y(0.06f))
-    path.close()
-}
+    Canvas(if (still) modifier else modifier.graphicsLayer()) {
+        if (skyShader != null) {
+            val baseT = if (still) 0f else timeState.value
+            val t = baseT * (style.speed / 100f) * 1.2f + (mood.ordinal * 7.3f) % 30f
+            skyShader.updateTimeAndSize(t, size.width, size.height)
+            drawRect(skyShader.brush)
+        } else {
+            drawRect(
+                brush = Brush.verticalGradient(
+                    0.00f to style.tonesHigh,
+                    0.35f to style.tonesMain,
+                    0.65f to style.tonesMid,
+                    1.00f to style.tonesLow,
+                )
+            )
+        }
 
-/** The same four-pointed star, small, around [center]. */
-private fun sparkle(path: Path, center: Offset, r: Float) {
-    path.reset()
-    path.moveTo(center.x, center.y - r)
-    path.quadraticTo(center.x + r * 0.12f, center.y - r * 0.12f, center.x + r, center.y)
-    path.quadraticTo(center.x + r * 0.12f, center.y + r * 0.12f, center.x, center.y + r)
-    path.quadraticTo(center.x - r * 0.12f, center.y + r * 0.12f, center.x - r, center.y)
-    path.quadraticTo(center.x - r * 0.12f, center.y - r * 0.12f, center.x, center.y - r)
-    path.close()
-}
-
-private fun fivePointStar(path: Path, center: Offset, r: Float) {
-    path.reset()
-    for (i in 0 until 10) {
-        val radius = if (i % 2 == 0) r else r * 0.45f
-        val angle = i * PI.toFloat() / 5f - PI.toFloat() / 2f
-        val x = center.x + radius * cos(angle)
-        val y = center.y + radius * sin(angle)
-        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-    }
-    path.close()
-}
-
-/** A crescent: a disc with a bite taken out of its upper right. */
-private fun crescent(path: Path, f: Frame, cx: Float, cy: Float, r: Float) {
-    val disc = Path().apply { addOval(Rect(f.at(cx, cy), f.side * r)) }
-    val bite = Path().apply { addOval(Rect(f.at(cx + r * 0.5f, cy - r * 0.3f), f.side * r * 0.88f)) }
-    path.reset()
-    path.op(disc, bite, PathOperation.Difference)
-}
-
-/** Two round lobes and straight sides down to a point. */
-private fun heart(path: Path, f: Frame) {
-    val r = 0.24f
-    path.reset()
-    path.moveTo(f.x(0.5f), f.y(0.92f))
-    path.lineTo(f.x(0.28f - r * 0.707f), f.y(0.30f + r * 0.707f))
-    path.arcTo(Rect(f.x(0.28f - r), f.y(0.30f - r), f.x(0.28f + r), f.y(0.30f + r)), 135f, 195f, false)
-    path.arcTo(Rect(f.x(0.72f - r), f.y(0.30f - r), f.x(0.72f + r), f.y(0.30f + r)), 210f, 195f, false)
-    path.close()
-}
-
-/** A coil that narrows as it falls, like Apple's Feeling Blue twister. */
-private fun spiral(path: Path, f: Frame) {
-    val turns = 5.5f
-    val steps = 320
-    path.reset()
-    for (k in 0..steps) {
-        val t = k.toFloat() / steps
-        val angle = PI.toFloat() + t * turns * TAU
-        val rx = 0.38f * (1f - 0.72f * t)
-        val ry = 0.075f * (1f - 0.55f * t)
-        val x = f.x(0.5f + rx * cos(angle))
-        val y = f.y(0.10f + 0.78f * t + ry * sin(angle))
-        if (k == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        // Contrast foot scrim for crystal clear legibility
+        drawRect(
+            brush = Brush.verticalGradient(
+                0.60f to Color.Transparent,
+                1.00f to style.tonesLow.copy(alpha = 0.55f),
+            )
+        )
     }
 }
+
 
 // ---- Find Your Mood -----------------------------------------------------------
 
@@ -1552,15 +1181,20 @@ private fun spiral(path: Path, f: Frame) {
 @Composable
 internal fun FindYourMoodShelf(onClick: (TopPickMood, String) -> Unit, onShowAll: () -> Unit) {
     val rowState = rememberLazyListState()
-    Column(Modifier.padding(bottom = 26.dp)) {
-        SectionHeader(stringResource(Res.string.find_your_mood), onShowAll = onShowAll)
-        ShelfRow(
-            contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            state = rowState,
-        ) {
-            items(TopPickMood.entries.filter { it.isCoreMood }, key = { it.name }) { mood ->
-                MoodTile(mood, onClick, Modifier.width(SHELF_CARD_WIDTH))
+    val timeState = rememberContinuousTime()
+    CompositionLocalProvider(LocalContinuousTime provides timeState) {
+        PausedWhileScrolling(rowState) {
+            Column(Modifier.padding(bottom = 26.dp)) {
+                SectionHeader(stringResource(Res.string.find_your_mood), onShowAll = onShowAll)
+                ShelfRow(
+                    contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    state = rowState,
+                ) {
+                    items(TopPickMood.entries.filter { it.isCoreMood }, key = { it.name }) { mood ->
+                        MoodTile(mood, onClick, Modifier.width(SHELF_CARD_WIDTH))
+                    }
+                }
             }
         }
     }
@@ -1577,18 +1211,23 @@ fun MoodGridPage(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
-    BoxWithConstraints(modifier.fillMaxSize()) {
-        val grid = libraryGrid(maxWidth - PAGE_GUTTER * 2)
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(grid.columns),
-            state = gridState,
-            contentPadding = contentPadding,
-            horizontalArrangement = Arrangement.spacedBy(LIBRARY_GRID_SPACING),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-            modifier = Modifier.padding(horizontal = PAGE_GUTTER),
-        ) {
-            gridItems(TopPickMood.entries, key = { it.name }) { mood ->
-                MoodTile(mood, onClick, Modifier.fillMaxWidth())
+    val timeState = rememberContinuousTime()
+    CompositionLocalProvider(LocalContinuousTime provides timeState) {
+        PausedWhileScrolling(gridState) {
+            BoxWithConstraints(modifier.fillMaxSize()) {
+                val grid = libraryGrid(maxWidth - PAGE_GUTTER * 2)
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(grid.columns),
+                    state = gridState,
+                    contentPadding = contentPadding,
+                    horizontalArrangement = Arrangement.spacedBy(LIBRARY_GRID_SPACING),
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                    modifier = Modifier.padding(horizontal = PAGE_GUTTER),
+                ) {
+                    gridItems(TopPickMood.entries, key = { it.name }) { mood ->
+                        MoodTile(mood, onClick, Modifier.fillMaxWidth(), still = false)
+                    }
+                }
             }
         }
     }
@@ -1596,7 +1235,12 @@ fun MoodGridPage(
 
 /** A mood's square tile and its name under it, sized like a [ShelfCard]. */
 @Composable
-private fun MoodTile(mood: TopPickMood, onClick: (TopPickMood, String) -> Unit, modifier: Modifier) {
+private fun MoodTile(
+    mood: TopPickMood,
+    onClick: (TopPickMood, String) -> Unit,
+    modifier: Modifier = Modifier,
+    still: Boolean = false,
+) {
     val title = stringResource(mood.titleRes())
     Column(modifier.clickable { onClick(mood, title) }) {
         Box(
@@ -1606,11 +1250,7 @@ private fun MoodTile(mood: TopPickMood, onClick: (TopPickMood, String) -> Unit, 
                 .clip(RoundedCornerShape(12.dp))
                 .thumbnailBorder(RoundedCornerShape(12.dp)),
         ) {
-            // Still. A shelf of tiles each breathing on its own loop kept the
-            // page under the glass bars redrawing — and the bars' blur with
-            // it — for as long as the shelf was in view; the motion is Top
-            // Picks' own, one card at a time.
-            MoodArt(mood, mood.style(), Modifier.fillMaxSize(), square = true, still = true)
+            MoodArt(mood, mood.style(), Modifier.fillMaxSize(), square = true, still = still)
             Icon(
                 painter = painterResource(Res.drawable.ic_logo),
                 contentDescription = null,

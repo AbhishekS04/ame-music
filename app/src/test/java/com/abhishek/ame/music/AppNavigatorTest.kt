@@ -1,6 +1,7 @@
 package com.abhishek.ame.music
 
 import com.abhishek.ame.music.data.model.HomeShelf
+import com.abhishek.ame.music.ui.navigation.AppDestination
 import com.abhishek.ame.music.ui.navigation.AppNavigator
 import com.abhishek.ame.music.ui.navigation.AppRoute
 import org.junit.Assert.assertEquals
@@ -117,6 +118,53 @@ class AppNavigatorTest {
         navigator.reset(AppRoute.Settings, AppRoute.ListenTogether)
         assertTrue(releases.isEmpty())
         assertEquals(AppRoute.ListenTogether, navigator.visibleRoute())
+    }
+
+    /** What the gesture reveals must be what is on screen once the pop has happened. */
+    private fun assertRevealMatchesPop(tab: Int = 0) {
+        while (true) {
+            val revealed = navigator.destinationAfterPop(releases.toList(), tab)
+            val popped = navigator.pop()
+            if (!popped) {
+                assertNull(revealed)
+                return
+            }
+            assertEquals(revealed, navigator.destination(releases.toList(), tab))
+        }
+    }
+
+    @Test
+    fun theRevealedPageIsTheOneBackLandsOn() {
+        navigator.push(AppRoute.Settings)
+        navigator.push(AppRoute.AccountScrobbling)
+        navigator.push(AppRoute.Spotify)
+        releases += "spotify:playlist"
+        releases += "artist"
+        assertRevealMatchesPop(tab = 2)
+    }
+
+    @Test
+    fun theRevealedPageIsRightWithReleasesUnderAndOverARoute() {
+        releases += "album"
+        navigator.push(AppRoute.Settings)
+        releases += "artist"
+        navigator.push(AppRoute.History)
+        assertRevealMatchesPop(tab = 1)
+    }
+
+    @Test
+    fun nothingIsRevealedOverABareTab() {
+        assertNull(navigator.destinationAfterPop(emptyList(), 0))
+    }
+
+    @Test
+    fun anArtistsOpenShelfIsNotAPageToPeelAway() {
+        releases += "artist"
+        navigator.push(AppRoute.ArtistShelf("artist", HomeShelf("Singles", emptyList())))
+        val before = navigator.destination(releases.toList(), 0)
+        assertEquals(AppDestination.Release("artist"), before)
+        // Closing the shelf changes nothing the gesture could reveal.
+        assertEquals(before, navigator.destinationAfterPop(releases.toList(), 0))
     }
 
     @Test

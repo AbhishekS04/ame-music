@@ -48,7 +48,7 @@ val lastfmSecret: String = (
 val listenTogetherServer: String = (
     localProps.getProperty("LISTEN_TOGETHER_SERVER")
         ?: System.getenv("LISTEN_TOGETHER_SERVER")
-        ?: ""
+        ?: "https://ame-listen-together.onrender.com"
     ).trim().trimEnd('/')
 
 /**
@@ -243,6 +243,10 @@ kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
+}
+
+composeCompiler {
+    stabilityConfigurationFiles.add(rootProject.layout.projectDirectory.file("compose_stability_config.conf"))
 }
 
 /*
@@ -472,7 +476,7 @@ val verifyDevInstall = tasks.register("verifyDevInstall") {
             logger.lifecycle("verifyDevInstall: compiling com.abhishek.ame.music.dev on $serial")
             ProcessBuilder(
                 adbPath, "-s", serial, "shell", "cmd", "package", "compile",
-                "-m", "verify", "-f", "com.abhishek.ame.music.dev",
+                "-m", "speed", "-f", "com.abhishek.ame.music.dev",
             ).inheritIO().start().waitFor()
         }
     }

@@ -60,6 +60,7 @@ class AmeApplication : Application(), SingletonImageLoader.Factory, Configuratio
     @kotlin.OptIn(ExperimentalComposeUiApi::class)
     override fun onCreate() {
         super.onCreate()
+        com.abhishek.ame.music.playback.AudioEffects.load(this)
         // Local only: writes a report on crash, never uploads it.
         com.abhishek.ame.music.data.CrashReporter.install(this)
         // The player is drawn by the shared UI module; this is what it reads

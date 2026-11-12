@@ -11,7 +11,11 @@ import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
 import android.widget.Toast
+
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -103,6 +107,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -172,6 +177,9 @@ import com.abhishek.ame.music.ui.components.LocalPlayingBarsMotion
 import com.abhishek.ame.music.ui.components.handleDacVolumeKey
 import com.abhishek.ame.music.ui.components.VolumeHud
 import com.abhishek.ame.music.ui.navigation.AppDestination
+import com.abhishek.ame.music.ui.navigation.PageStackHost
+import com.abhishek.ame.music.ui.navigation.PageStackState
+import com.abhishek.ame.music.ui.navigation.PageTransition
 import com.abhishek.ame.music.ui.navigation.AppRoute
 import com.abhishek.ame.music.ui.screens.EqualizerPresetPage
 import com.abhishek.ame.music.ui.screens.SettingsChoicePage
@@ -248,6 +256,7 @@ import com.abhishek.ame.music.ui.components.IosMenuPopover
 import com.abhishek.ame.music.ui.components.SongActionsMenu
 import com.abhishek.ame.music.ui.components.HeldContextMenu
 import com.abhishek.ame.music.ui.components.HeldItem
+import com.abhishek.ame.music.ui.player.PlayerDrawer
 import androidx.media3.session.MediaController
 import com.abhishek.ame.music.playback.QualityUpgrade
 import com.abhishek.ame.music.playback.rememberMediaController
@@ -687,6 +696,7 @@ private fun AmeApp(
     var discordDialog by remember { mutableStateOf<DiscordDialog?>(null) }
     var songActions by remember { mutableStateOf<Song?>(null) }
     var showLyricsOffset by remember { mutableStateOf(false) }
+    var showAudioEffectsSheet by remember { mutableStateOf(false) }
     /**
      * Whether the track menu that is up was opened from the player.
      *
@@ -953,7 +963,9 @@ private fun AmeApp(
     // order never imposes itself on another, and every page keeps its own
     // across visits.
     val detailSongSorts by AppSettings.detailSongSorts.collectAsStateWithLifecycle()
-    val songSort = topDetail?.browseId?.let { detailSongSorts[it] } ?: SongSort.DEFAULT
+    val songSort by remember(topDetail?.browseId, detailSongSorts) {
+        derivedStateOf { topDetail?.browseId?.let { detailSongSorts[it] } ?: SongSort.DEFAULT }
+    }
     var songSortMenuOpen by remember { mutableStateOf(false) }
     // A device folder's equivalents — its sort and whether it is a grid —
     // kept apart for Downloads and shared by every other folder, as they
@@ -2762,6 +2774,8 @@ private fun AmeApp(
             lyricsUnavailable = lyricsChecked && lyrics.isNullOrEmpty(),
             lyricsOffsetOpen = showLyricsOffset,
             onDismissLyricsOffset = { showLyricsOffset = false },
+            audioEffectsOpen = showAudioEffectsSheet,
+            onDismissAudioEffects = { showAudioEffectsSheet = false },
             onListenTogether = {
                 // The player is a sheet over the page, so it has to come down
                 // for the page to be read at all.
@@ -2812,7 +2826,54 @@ private fun AmeApp(
         // drawn over a page, then the alerts drawn over everything. Each sheet
         // and dialog further down registers its own handler as it opens, and
         // so outranks all of these while it is up.
-        BackHandler(enabled = canGoBack, onBack = goBack)
+        // The page area's one piece of state: every push, pop and fade between
+        // pages, and the interactive back gesture, are [PageStackState]'s.
+        val pageSwitcherTarget: AppDestination = when {
+            visibleEntry != null -> AppDestination.Route(visibleEntry)
+            detail != null -> AppDestination.Release(detail.browseId)
+            else -> AppDestination.Tab(selectedTab)
+        }
+        val pageStack = remember { PageStackState(pageSwitcherTarget, scope) }
+        // The interactive gesture belongs to pages pushed over a tab and to
+        // nothing else: a tab answers back by going Home, or by handing the app
+        // to the system, and has no page to peel away. An artist's open shelf
+        // closes in place, with no page to reveal.
+        val canPredictiveBack = (navigator.entries.isNotEmpty() || detailStack.isNotEmpty()) &&
+            artistShelfRoute == null
+        val currentGoBack by rememberUpdatedState(goBack)
+        PredictiveBackHandler(enabled = canPredictiveBack && !pageStack.isBusy) { events ->
+            var token = PageStackState.REJECTED
+            try {
+                events.collect { event ->
+                    // A back from a button or a key sends no progress at all, and
+                    // so never starts a gesture: it is just a pop, animated like
+                    // one. Only a finger on the screen peels a page.
+                    if (token == PageStackState.REJECTED) {
+                        val revealed = navigator.destinationAfterPop(
+                            detailIds = viewModel.detailStack.value.map { it.browseId },
+                            tab = selectedTab,
+                        ) ?: return@collect
+                        token = pageStack.beginGesture(revealed = revealed)
+                    }
+                    pageStack.dragGesture(token = token, value = event.progress)
+                }
+            } catch (e: CancellationException) {
+                // The finger lifted short of the commit, or a newer swipe began.
+                // The spring home runs on the state's own scope.
+                withContext(NonCancellable) { pageStack.cancelGesture(token) }
+                throw e
+            }
+            if (token == PageStackState.REJECTED) {
+                currentGoBack()
+            } else {
+                pageStack.commitGesture(token) { currentGoBack() }
+            }
+        }
+        BackHandler(enabled = canGoBack && !canPredictiveBack, onBack = goBack)
+        // A commit takes a few frames to carry out. A back pressed meanwhile
+        // would act on a stack that is about to change under it, so it is
+        // swallowed; registered after the handlers above, so it outranks them.
+        BackHandler(enabled = pageStack.isBusy) { }
         // Replay's stories and its share sheet are drawn over everything, and
         // unwind in the order they were opened. Only while there is a summary
         // to draw them from — otherwise back would spend a step closing
@@ -2838,85 +2899,7 @@ private fun AmeApp(
         // takes its still of; the menus themselves are drawn outside it.
         Row(Modifier.fillMaxSize().snapshotBackdropSource(pageBackdrop)) {
             Box(Modifier.weight(1f).fillMaxHeight()) {
-                AnimatedContent(
-                    // Whatever is on top of the back stack — see [AppNavigator].
-                    targetState = when {
-                        visibleEntry != null -> AppDestination.Route(visibleEntry)
-                        detail != null -> AppDestination.Release(detail.browseId)
-                        else -> AppDestination.Tab(selectedTab)
-                    },
-                    // A route's entry is copied when the release pages under it
-                    // change, which is not a different page.
-                    contentKey = { it.key },
-                    // Tabs swap outright; everything else crossfades.
-                    //
-                    // A tab is not a place you travel to — the bar is the whole
-                    // navigation and it carries its own movement — so a fade
-                    // between two of them only ever reads as a stutter. And it
-                    // cannot read as anything else: neither page paints a
-                    // background, so a crossfade dissolves both through to the
-                    // window and the switch dips through a dimmer frame in the
-                    // middle. Pushing a page or raising Settings is a real
-                    // change of context and keeps the fade.
-                    //
-                    // "Show all" swapping with the Library tab underneath it is
-                    // the same case as a tab swap, not a pushed page: it's still
-                    // that tab, just laid out as a grid instead of a row, sharing
-                    // its background rather than painting its own — so this one
-                    // pair gets the tab's no-fade swap too, in both directions, or
-                    // the dip through a dim frame shows up on every hold of a
-                    // card there. A card opened *from* the grid is a real page
-                    // and keeps the fade, same as one opened from the row.
-                    transitionSpec = {
-                        val initial = initialState
-                        val target = targetState
-                        val tabSwap = initial is AppDestination.Tab && target is AppDestination.Tab
-                        val libraryTab = AppDestination.Tab(TAB_LIBRARY)
-                        fun AppDestination.isShowAll() =
-                            (this as? AppDestination.Route)?.entry?.route is AppRoute.LibraryShowAll
-                        val libraryShowAllSwap = (initial.isShowAll() && target == libraryTab) ||
-                            (target.isShowAll() && initial == libraryTab)
-                        if (tabSwap || libraryShowAllSwap) {
-                            EnterTransition.None togetherWith ExitTransition.None
-                        } else {
-                            (slideInHorizontally(
-                                initialOffsetX = { (it * 0.12f).toInt() },
-                                animationSpec = spring(stiffness = 600f, dampingRatio = 0.9f),
-                            ) + fadeIn(tween(220, easing = FastOutSlowInEasing)))
-                                .togetherWith(
-                                    slideOutHorizontally(
-                                        targetOffsetX = { (-it * 0.08f).toInt() },
-                                        animationSpec = spring(stiffness = 600f, dampingRatio = 0.9f),
-                                    ) + fadeOut(tween(180, easing = FastOutSlowInEasing)),
-                                )
-                        }
-                    },
-                    modifier = Modifier
-                        .hazeSource(hazeState)
-                        .then(
-                            if (glassActive) {
-                                Modifier
-                                    // Not under "reduce dynamic blur": nothing
-                                    // samples the layer then, and recording a
-                                    // whole page into one for no reader is the
-                                    // cost that setting exists to remove.
-                                    .then(
-                                        if (glassSamplesBackdrop) {
-                                            Modifier.layerBackdrop(appBackdrop)
-                                        } else {
-                                            Modifier
-                                        },
-                                    )
-                                    // Every page's scroll passes through here, so
-                                    // the glass bar collapses on all of them
-                                    // without each one having to know about it.
-                                    .nestedScroll(navBarScroll)
-                            } else {
-                                Modifier
-                            },
-                        ),
-                    label = "content",
-                ) { destination ->
+                val renderDestinationPage: @Composable (AppDestination, Boolean) -> Unit = { destination, isPreview ->
                     // Every branch below reads `destination` rather than the
                     // stack that produced it. The two are the same thing only
                     // for the page being entered: the one on its way out is
@@ -2926,7 +2909,7 @@ private fun AmeApp(
                     val key = destination.key
                     val pageRoute = (destination as? AppDestination.Route)?.entry?.route
                     val live = (destination as? AppDestination.Release)?.let { release ->
-                        detailStack.lastOrNull()?.takeIf { it.browseId == release.browseId }
+                        detailStack.lastOrNull { it.browseId == release.browseId }
                     }
                     // Held for the same reason, one step further on: a popped
                     // page is off the stack before it has finished animating
@@ -3665,7 +3648,7 @@ private fun AmeApp(
                                 },
                             )
                             TAB_SETTINGS -> SettingsScreen(
-                                section = (route as? AppRoute.SettingsSection)?.category,
+                                section = null,
                                 onOpenSection = { navigator.push(AppRoute.SettingsSection(it)) },
                                 onOpenChoice = { navigator.push(AppRoute.SettingsChoice(it)) },
                                 windowWidth = windowWidth,
@@ -3749,15 +3732,85 @@ private fun AmeApp(
                     // The playing bars hold still with the player up, the app in
                     // the background, or this page on its way out: each frame of
                     // them redraws the page under the glass, for nobody.
-                    val barsMotion = artworkMotion && transition.targetState == EnterExitState.Visible
+                    val barsMotion = artworkMotion && !isPreview
                     CompositionLocalProvider(LocalPlayingBarsMotion provides barsMotion) {
-                        if (destination is AppDestination.Tab) {
-                            pageContent()
-                        } else {
-                            pageKeysSeen += key
-                            pageStates.SaveableStateProvider(key, pageContent)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.background),
+                        ) {
+                            if (destination is AppDestination.Tab || isPreview) {
+                                pageContent()
+                            } else {
+                                pageKeysSeen += key
+                                pageStates.SaveableStateProvider(key, pageContent)
+                            }
                         }
                     }
+                }
+
+
+                val classifyTransition: (AppDestination, AppDestination) -> PageTransition = { initial, target ->
+                    val libraryTab = AppDestination.Tab(TAB_LIBRARY)
+                    fun AppDestination.isShowAll() =
+                        (this as? AppDestination.Route)?.entry?.route is AppRoute.LibraryShowAll
+                    when {
+                        // Tabs are not a place you travel to — the bar carries its
+                        // own movement — so they cross-fade. "Show all" over the
+                        // Library tab is the same tab laid out as a grid.
+                        initial is AppDestination.Tab && target is AppDestination.Tab -> PageTransition.Fade
+                        (initial.isShowAll() && target == libraryTab) ||
+                            (target.isShowAll() && initial == libraryTab) -> PageTransition.Fade
+                        initial is AppDestination.Tab && target !is AppDestination.Tab -> PageTransition.Push
+                        initial !is AppDestination.Tab && target is AppDestination.Tab -> PageTransition.Pop
+                        initial is AppDestination.Route && target is AppDestination.Route ->
+                            if (target.entry.id > initial.entry.id) PageTransition.Push else PageTransition.Pop
+                        initial is AppDestination.Release && target is AppDestination.Release -> {
+                            val initIdx = detailStack.indexOfFirst { it.browseId == initial.browseId }
+                            val tgtIdx = detailStack.indexOfFirst { it.browseId == target.browseId }
+                            when {
+                                initIdx == -1 && tgtIdx >= 0 -> PageTransition.Pop
+                                initIdx >= 0 && tgtIdx >= 0 ->
+                                    if (tgtIdx > initIdx) PageTransition.Push else PageTransition.Pop
+                                else -> PageTransition.Push
+                            }
+                        }
+                        initial is AppDestination.Route && target is AppDestination.Release -> PageTransition.Push
+                        initial is AppDestination.Release && target is AppDestination.Route -> PageTransition.Pop
+                        else -> PageTransition.Push
+                    }
+                }
+
+                // Every page is a real composition inside this one container, so
+                // what a swipe reveals under the page is the page itself — and
+                // the glass and haze, which sample the container, see it.
+                PageStackHost(
+                    state = pageStack,
+                    target = pageSwitcherTarget,
+                    classify = classifyTransition,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .hazeSource(hazeState)
+                        .then(
+                            if (glassActive) {
+                                Modifier
+                                    .then(
+                                        if (glassSamplesBackdrop) {
+                                            // Never frozen for the back gesture: the glass has to
+                                            // sample the pages as they slide, the revealed one
+                                            // included, or it shows the old page until release.
+                                            Modifier.layerBackdrop(appBackdrop)
+                                        } else {
+                                            Modifier
+                                        },
+                                    )
+                                    .nestedScroll(navBarScroll)
+                            } else {
+                                Modifier
+                            },
+                        ),
+                ) { destination ->
+                    renderDestinationPage(destination, false)
                 }
 
                 // The top-bar footprint is transparent on every page so the
@@ -4737,6 +4790,14 @@ private fun AmeApp(
                 } else {
                     null
                 },
+                onAudioEffects = if (fromPlayer) {
+                    {
+                        songActions = null
+                        showAudioEffectsSheet = true
+                    }
+                } else {
+                    null
+                },
             )
         }
         // ---- Now Playing ----
@@ -4921,14 +4982,11 @@ private fun AmeApp(
         // ---- Share the Replay ----
         if (showReplayShare) {
             replay.summary?.takeUnless { it.isEmpty }?.let { summary ->
-                ModalBottomSheet(
-                    onDismissRequest = { showReplayShare = false },
-                    // Straight to full height. The sheet is a picture and two
-                    // buttons, and half-open it showed the picture with both
-                    // buttons below the fold — a sheet whose only two controls
-                    // need a drag to reach.
-                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                    containerColor = MaterialTheme.colorScheme.background,
+                PlayerDrawer(
+                    hazeState = hazeState,
+                    title = "",
+                    onDismiss = { showReplayShare = false },
+                    maxHeight = 640.dp,
                 ) {
                     ReplayShareSheet(
                         summary = summary,
@@ -5337,9 +5395,10 @@ private fun AmeApp(
             // floating over the page: the menu hands it on, and the form comes up
             // here on a sheet of its own.
             browseActions?.takeIf { browseRenameInSheet }?.let { target ->
-                ModalBottomSheet(
-                    onDismissRequest = { browseActions = null },
-                    containerColor = MaterialTheme.colorScheme.background,
+                PlayerDrawer(
+                    hazeState = hazeState,
+                    title = stringResource(R.string.rename),
+                    onDismiss = { browseActions = null },
                 ) {
                     browseMenuBody(target)
                 }
@@ -5455,7 +5514,8 @@ private fun AmeApp(
                                 )
                             }
                         }
-                        if (pageReady) {
+                        // Only show button when switching profiles, not on first sign-in
+                        if (pageReady && mode == WebSessionMode.SWITCH_CHANNEL) {
                             TextButton(onClick = {
                                 captureFailed = false
                                 confirmingProfile = true
@@ -5474,7 +5534,14 @@ private fun AmeApp(
                             googleAccounts.firstOrNull { it.accountId == activeAccountId }?.cookie
                         } else null,
                         captureRequest = captureRequest,
-                        onPageReady = { pageReady = it },
+                        onPageReady = { ready ->
+                            pageReady = ready
+                            // Auto-capture session when signing in for first time
+                            if (ready && mode == WebSessionMode.SIGN_IN) {
+                                confirmingProfile = true
+                                captureRequest++
+                            }
+                        },
                         onCaptureUnavailable = {
                             confirmingProfile = false
                             captureFailed = true

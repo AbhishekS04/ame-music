@@ -42,10 +42,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import com.abhishek.ame.music.ui.player.PlayerDrawer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -118,8 +116,6 @@ fun PlaylistPickerSheet(
     // and a refreshed row must stay ticked.
     var selected by remember { mutableStateOf(emptySet<String>()) }
 
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val scope = rememberCoroutineScope()
     // Once only: the sheet is still up, and tappable, while it slides away, and
     // a second tap on the tick would file the track a second time.
     var closing by remember { mutableStateOf(false) }
@@ -127,31 +123,23 @@ fun PlaylistPickerSheet(
         if (!closing) {
             closing = true
             action()
-            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+            onDismiss()
         }
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        // It reaches the top of the screen, where corners would only cut two
-        // notches out of the status bar's background.
-        shape = RectangleShape,
-        containerColor = MaterialTheme.colorScheme.background,
-        dragHandle = null,
-        contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
-        // Back is this sheet's to carry out, below: left to M3 it closes the whole
-        // sheet from either panel, and takes the ticks with it.
-        properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false),
+    PlayerDrawer(
+        hazeState = null,
+        title = "",
+        onDismiss = onDismiss,
+        maxHeight = 640.dp,
+        scrollable = false,
     ) {
         BackHandler {
             if (creating && !startCreating) creating = false else closeAfter {}
         }
 
         Column(
-            Modifier
-                .fillMaxSize()
-                .statusBarsPadding(),
+            Modifier.fillMaxWidth(),
         ) {
             if (creating) {
                 NewPlaylistForm(

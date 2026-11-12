@@ -97,6 +97,56 @@ class AppNavigator(
 
     fun visibleRoute(depth: Int = detailDepth()): AppRoute? = visibleEntry(depth)?.route
 
+    /**
+     * What fills the page area for the stack as it stands: the key the page
+     * switcher animates on. [detailIds] are the release pages' browse ids,
+     * bottom first, and [tab] the selected tab.
+     */
+    fun destination(detailIds: List<String>, tab: Int): AppDestination =
+        resolve(stack, detailIds.size, detailIds, tab)
+
+    /**
+     * What [pop] would leave on screen, without popping: the page the back
+     * gesture reveals as it peels the top one away. Null when nothing is
+     * pushed, where back belongs to the tab or the system.
+     *
+     * Mirrors [pop] and [onDetailStackShrunk] step for step, so the page shown
+     * under the gesture is the page that is there once it commits. It can come
+     * back as the same destination that is on screen — an artist's open shelf
+     * is closed in place — and callers must not peel a page to show itself.
+     */
+    fun destinationAfterPop(detailIds: List<String>, tab: Int): AppDestination? {
+        val depth = detailIds.size
+        val top = stack.lastOrNull()
+        return when {
+            depth > (top?.detailDepth ?: 0) -> {
+                val shrunk = depth - 1
+                val entries = stack.map {
+                    if (it.detailDepth > shrunk) it.copy(detailDepth = shrunk) else it
+                }
+                resolve(entries, shrunk, detailIds, tab)
+            }
+            top != null -> resolve(stack.dropLast(1), depth, detailIds, tab)
+            else -> null
+        }
+    }
+
+    private fun resolve(
+        entries: List<RouteEntry>,
+        depth: Int,
+        detailIds: List<String>,
+        tab: Int,
+    ): AppDestination {
+        val visible = entries.lastOrNull()?.takeIf { depth <= it.detailDepth }
+        return when {
+            // An artist's open shelf is drawn by the artist page itself, so it
+            // is never a page of its own.
+            visible != null && visible.route !is AppRoute.ArtistShelf -> AppDestination.Route(visible)
+            depth > 0 -> AppDestination.Release(detailIds[depth - 1])
+            else -> AppDestination.Tab(tab)
+        }
+    }
+
     /** Whether [route] is anywhere on the stack, on screen or under something. */
     operator fun contains(route: AppRoute): Boolean = stack.any { it.route == route }
 

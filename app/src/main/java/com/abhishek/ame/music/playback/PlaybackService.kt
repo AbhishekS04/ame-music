@@ -30,6 +30,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.core.net.toUri
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.SonicAudioProcessor
@@ -598,6 +599,7 @@ class PlaybackService : MediaLibraryService() {
     private val equalizerProcessorB = EqualizerProcessor()
     private val transitionFilterA = TransitionFilterProcessor()
     private val transitionFilterB = TransitionFilterProcessor()
+    private val playerReverb = PlayerReverb()
 
     /**
      * Loudness normalization, one per player like the other stages — see
@@ -2592,6 +2594,8 @@ class PlaybackService : MediaLibraryService() {
         incoming.addListener(playbackListener)
         incoming.addAnalyticsListener(formatListener)
         adoptFormatOf(incoming)
+        incoming.playbackParameters = PlaybackParameters(AudioEffects.speed.value, AudioEffects.pitch.value)
+        playerReverb.apply(incoming, AudioEffects.reverb.value)
 
         mediaSession?.player = newSessionPlayer(incoming, requireNotNull(crossfade))
 
@@ -3457,6 +3461,8 @@ class PlaybackService : MediaLibraryService() {
         incoming.addListener(playbackListener)
         incoming.addAnalyticsListener(formatListener)
         adoptFormatOf(incoming)
+        incoming.playbackParameters = PlaybackParameters(AudioEffects.speed.value, AudioEffects.pitch.value)
+        playerReverb.apply(incoming, AudioEffects.reverb.value)
 
         mediaSession?.player = newSessionPlayer(incoming, requireNotNull(crossfade))
 
@@ -7013,7 +7019,44 @@ class PlaybackService : MediaLibraryService() {
 
     private fun observeSettings() {
         scope.launch {
+            AudioEffects.reverb.collect { amount ->
+                player?.let { playerReverb.apply(it, amount) }
+            }
+        }
+        scope.launch {
+            kotlinx.coroutines.flow.combine(AudioEffects.speed, AudioEffects.pitch) { sp, pt -> sp to pt }
+                .collect { (sp, pt) ->
+                    val params = PlaybackParameters(sp, pt)
+                    eachPlayer { it.playbackParameters = params }
+                }
+        }
+        scope.launch {
             AppSettings.skipSilence.collect { on -> eachPlayer { it.skipSilenceEnabled = on } }
+        }
+        // Watch for spatial audio changes and update audio attributes
+        scope.launch {
+            kotlinx.coroutines.flow.combine(
+                AppSettings.spatialAudio,
+                AppSettings.dolbyAtmos
+            ) { spatial, dolby -> spatial || dolby }
+                .collect { spatialEnabled ->
+                    if (spatialEnabled) {
+                        // Try to activate OEM spatial audio (DeepField, Dirac, etc.)
+                        activateOEMSpatialAudio(this@PlaybackService)
+                        // Apply spatial audio attributes
+                        val attrs = buildSpatialAudioAttributes(this@PlaybackService)
+                        eachPlayer { it.setAudioAttributes(attrs, false) }
+                    } else {
+                        // Deactivate OEM spatial audio
+                        deactivateOEMSpatialAudio(this@PlaybackService)
+                        // Revert to normal attributes
+                        eachPlayer { it.setAudioAttributes(AUDIO_ATTRIBUTES, false) }
+                    }
+                }
+        }
+        // Watch system audio changes and sync our toggles with reality
+        scope.launch {
+            watchSystemSpatialAudio(this@PlaybackService)
         }
         scope.launch {
             AppSettings.preferUsbDac.drop(1).collect { requestOutputReconfiguration() }
@@ -7593,6 +7636,7 @@ class PlaybackService : MediaLibraryService() {
 
 
     override fun onDestroy() {
+        playerReverb.release(player)
         // Let go of the receiver's player but leave its session alone: a
         // service that idles out while casting is not the listener choosing to
         // stop, and the next one picks the session up where it was.
@@ -9277,6 +9321,201 @@ class PlaybackService : MediaLibraryService() {
             .setUsage(C.USAGE_MEDIA)
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .build()
+
+        /**
+         * Builds audio attributes with spatial audio enabled based on device capabilities.
+         * Used when user enables spatial audio in settings.
+         */
+        fun buildSpatialAudioAttributes(context: Context): AudioAttributes {
+            val builder = AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+
+            // Enable spatialization for Android 13+ devices
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                try {
+                    builder.setSpatializationBehavior(C.SPATIALIZATION_BEHAVIOR_AUTO)
+                } catch (e: Exception) {
+                    // Spatialization not available
+                }
+            }
+
+            return builder.build()
+        }
+
+        /**
+         * Attempts to send broadcast intents to activate OEM spatial audio systems.
+         * Call this when spatial audio is enabled in settings.
+         */
+        fun activateOEMSpatialAudio(context: Context) {
+            val brand = android.os.Build.BRAND.lowercase()
+            
+            when {
+                // Vivo DeepField activation attempts
+                brand in listOf("vivo", "iqoo") -> {
+                    try {
+                        // Broadcast 1: Enable DeepField
+                        val intent1 = android.content.Intent("vivo.intent.action.DEEPFIELD_ENABLE")
+                        intent1.putExtra("enabled", true)
+                        context.sendBroadcast(intent1)
+                        
+                        // Broadcast 2: Set DeepField mode to "Music"
+                        val intent2 = android.content.Intent("vivo.intent.action.AUDIO_MODE")
+                        intent2.putExtra("mode", "deepfield_music")
+                        context.sendBroadcast(intent2)
+                        
+                        // Broadcast 3: Fake headphone connection
+                        val intent3 = android.content.Intent("android.intent.action.HEADSET_PLUG")
+                        intent3.putExtra("state", 1) // 1 = connected
+                        intent3.putExtra("name", "Ame Virtual Audio")
+                        context.sendBroadcast(intent3)
+                    } catch (e: Exception) {
+                        android.util.Log.w("Ame", "DeepField activation failed: ${e.message}")
+                    }
+                }
+                
+                // OnePlus/Oppo Dirac activation
+                brand in listOf("oneplus", "oppo", "realme") -> {
+                    try {
+                        val intent = android.content.Intent("com.dirac.acs.ENABLE_SPATIAL")
+                        intent.putExtra("enabled", true)
+                        context.sendBroadcast(intent)
+                    } catch (e: Exception) {
+                        android.util.Log.w("Ame", "Dirac activation failed: ${e.message}")
+                    }
+                }
+            }
+        }
+
+        /**
+         * Deactivates OEM spatial audio when user toggles it off.
+         */
+        fun deactivateOEMSpatialAudio(context: Context) {
+            val brand = android.os.Build.BRAND.lowercase()
+            
+            when {
+                brand in listOf("vivo", "iqoo") -> {
+                    try {
+                        val intent = android.content.Intent("vivo.intent.action.DEEPFIELD_ENABLE")
+                        intent.putExtra("enabled", false)
+                        context.sendBroadcast(intent)
+                    } catch (e: Exception) {
+                        // Ignore
+                    }
+                }
+                
+                brand in listOf("oneplus", "oppo", "realme") -> {
+                    try {
+                        val intent = android.content.Intent("com.dirac.acs.ENABLE_SPATIAL")
+                        intent.putExtra("enabled", false)
+                        context.sendBroadcast(intent)
+                    } catch (e: Exception) {
+                        // Ignore
+                    }
+                }
+            }
+        }
+
+        /**
+         * Watches system spatial audio state and syncs our app's toggles.
+         * This prevents the app toggle from being out of sync when user changes
+         * system settings (e.g., Samsung's Dolby toggle in notification panel).
+         * 
+         * Also AUTO-ENABLES our toggle when:
+         * - User plugs in headphones and system enables DeepField/Dolby
+         * - User manually enables spatial audio in system settings
+         */
+        suspend fun watchSystemSpatialAudio(context: Context) {
+            kotlinx.coroutines.delay(2000) // Wait for service to fully start
+            
+            val spatialType = com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.detect(context)
+            
+            while (true) {
+                try {
+                    val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
+                    
+                    // For Android 13+ with Spatializer API
+                    if (audioManager != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                        val spatializer = audioManager.spatializer
+                        val systemSpatialActive = spatializer?.isEnabled == true && spatializer.isAvailable
+                        
+                        val ourDolbyEnabled = AppSettings.dolbyAtmos.value
+                        val ourSpatialEnabled = AppSettings.spatialAudio.value
+                        val ourAnythingEnabled = ourDolbyEnabled || ourSpatialEnabled
+                        
+                        when {
+                            // System enabled it, but our toggle is OFF → AUTO-ENABLE
+                            systemSpatialActive && !ourAnythingEnabled -> {
+                                when (spatialType) {
+                                    com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.SpatialAudioType.DOLBY_ATMOS -> {
+                                        AppSettings.setDolbyAtmos(true)
+                                    }
+                                    else -> {
+                                        AppSettings.setSpatialAudio(true)
+                                    }
+                                }
+                            }
+                            
+                            // System disabled it, but our toggle is ON → AUTO-DISABLE
+                            !systemSpatialActive && ourAnythingEnabled -> {
+                                if (ourDolbyEnabled) AppSettings.setDolbyAtmos(false)
+                                if (ourSpatialEnabled) AppSettings.setSpatialAudio(false)
+                            }
+                        }
+                    } else {
+                        // For older Android or devices without Spatializer API
+                        // Only handle Dolby/Dirac auto-enable (NOT Vivo DeepField)
+                        // Vivo users control DeepField through system equalizer only
+                        
+                        if (spatialType != com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.SpatialAudioType.DEEPFIELD) {
+                            // Check audio routing for headphone connection
+                            val devices = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                                audioManager?.getDevices(android.media.AudioManager.GET_DEVICES_OUTPUTS) ?: emptyArray()
+                            } else {
+                                emptyArray()
+                            }
+                            
+                            val hasHeadphones = devices.any { device ->
+                                device.type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                                device.type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                                device.type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                                device.type == android.media.AudioDeviceInfo.TYPE_USB_HEADSET
+                            }
+                            
+                            val ourSpatialEnabled = AppSettings.spatialAudio.value
+                            val ourDolbyEnabled = AppSettings.dolbyAtmos.value
+                            
+                            // For Dirac: Auto-enable when headphones are plugged in
+                            if (hasHeadphones && !ourSpatialEnabled && !ourDolbyEnabled) {
+                                when (spatialType) {
+                                    com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.SpatialAudioType.DIRAC -> {
+                                        // Auto-enable spatial audio when headphones connected
+                                        AppSettings.setSpatialAudio(true)
+                                    }
+                                    com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.SpatialAudioType.DOLBY_ATMOS -> {
+                                        // Auto-enable Dolby when headphones connected
+                                        AppSettings.setDolbyAtmos(true)
+                                    }
+                                    else -> { /* Do nothing for other types */ }
+                                }
+                            }
+                            
+                            // Auto-disable when headphones are unplugged (only for Dirac)
+                            if (!hasHeadphones && ourSpatialEnabled) {
+                                if (spatialType == com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.SpatialAudioType.DIRAC) {
+                                    AppSettings.setSpatialAudio(false)
+                                }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Ignore errors
+                }
+                
+                // Check every 3 seconds (faster response for headphone plug/unplug)
+                kotlinx.coroutines.delay(3000)
+            }
+        }
 
         /** Length of a FLAC STREAMINFO block, which the format fixes at 34 bytes. */
         const val STREAM_INFO_BYTES = 34

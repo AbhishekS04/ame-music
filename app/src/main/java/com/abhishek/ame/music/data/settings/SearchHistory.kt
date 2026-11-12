@@ -2,6 +2,9 @@ package com.abhishek.ame.music.data.settings
 
 import android.content.Context
 import android.content.SharedPreferences
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -63,7 +66,9 @@ object SearchHistory {
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences("ame_settings", Context.MODE_PRIVATE)
-        reload()
+        CoroutineScope(Dispatchers.IO).launch {
+            reload()
+        }
     }
 
     /**

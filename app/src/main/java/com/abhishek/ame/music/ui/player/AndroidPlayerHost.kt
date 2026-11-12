@@ -238,6 +238,39 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
         request: LyricsShareRequest,
         onDismiss: () -> Unit,
     ) = AndroidLyricsShareSheet(hazeState = hazeState, request = request, onDismiss = onDismiss)
+
+    @Composable
+    override fun AudioEffectsSheet(
+        hazeState: HazeState,
+        onDismiss: () -> Unit,
+    ) {
+        val context = androidx.compose.ui.platform.LocalContext.current
+        PlayerDrawer(
+            hazeState = hazeState,
+            title = "Slowed + Reverb",
+            onDismiss = onDismiss,
+        ) {
+            val speed by com.abhishek.ame.music.playback.AudioEffects.speed.collectAsStateWithLifecycle()
+            val pitch by com.abhishek.ame.music.playback.AudioEffects.pitch.collectAsStateWithLifecycle()
+            val reverb by com.abhishek.ame.music.playback.AudioEffects.reverb.collectAsStateWithLifecycle()
+            val presetStore = remember { com.abhishek.ame.music.playback.EffectPresetStore(context) }
+            val presets by presetStore.presets.collectAsStateWithLifecycle()
+
+            EffectsPanel(
+                speed = speed,
+                pitch = pitch,
+                reverb = reverb,
+                presets = presets,
+                onSpeed = { com.abhishek.ame.music.playback.AudioEffects.rememberSpeedAndPitch(it, pitch) },
+                onPitch = { com.abhishek.ame.music.playback.AudioEffects.rememberSpeedAndPitch(speed, it) },
+                onReverb = { com.abhishek.ame.music.playback.AudioEffects.setReverb(it) },
+                onApplyPreset = { preset ->
+                    com.abhishek.ame.music.playback.AudioEffects.rememberSpeedAndPitch(preset.speed, preset.pitch)
+                    com.abhishek.ame.music.playback.AudioEffects.setReverb(preset.reverbAmount)
+                },
+            )
+        }
+    }
 }
 
 /**

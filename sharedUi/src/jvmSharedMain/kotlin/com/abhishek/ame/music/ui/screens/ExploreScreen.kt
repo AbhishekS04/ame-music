@@ -110,7 +110,11 @@ fun ExploreScreen(
                         val rows = state.data.flatMap(MoodGenreSection::items)
                             .distinctBy { it.browseId to it.params }
                             .chunked(columns)
-                        items(rows, key = { row -> row.first().let { "${it.browseId}|${it.params}" } }) { row ->
+                        items(
+                            items = rows,
+                            key = { row -> row.first().let { "${it.browseId}|${it.params}" } },
+                            contentType = { "mood_genre_row" },
+                        ) { row ->
                             MoodGenreRow(row = row, columns = columns, onCategoryClick = onCategoryClick)
                         }
                     }

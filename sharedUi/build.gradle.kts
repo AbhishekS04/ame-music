@@ -56,6 +56,10 @@ kotlin {
         freeCompilerArgs.add("-Xexpect-actual-classes")
     }
 
+    composeCompiler {
+        stabilityConfigurationFiles.add(rootProject.layout.projectDirectory.file("compose_stability_config.conf"))
+    }
+
     sourceSets {
         // Both targets are JVMs, so the UI is written once against the JDK here
         // rather than in commonMain.

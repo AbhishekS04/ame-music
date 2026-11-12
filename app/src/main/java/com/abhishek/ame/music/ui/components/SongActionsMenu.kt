@@ -171,6 +171,7 @@ fun SongActionsMenu(
     onCopyLog: (() -> Unit)? = null,
     /** Opens the timing control offered only by the main player's menu. */
     onLyricsOffset: (() -> Unit)? = null,
+    onAudioEffects: (() -> Unit)? = null,
     /**
      * True while a lookup for this track's album/artist ids is still in
      * flight, so it isn't yet known whether "Open album" and "Open artist"
@@ -372,8 +373,16 @@ fun SongActionsMenu(
 
         // The player's own: about the track playing right now rather than
         // about the song as a thing in a library.
-        if (showSleepTimer || onLyricsOffset != null || onCopyLog != null) {
+        if (showSleepTimer || onLyricsOffset != null || onCopyLog != null || onAudioEffects != null) {
             if (startsGroup()) IosMenuSeparator()
+            onAudioEffects?.let {
+                ActionRow(
+                    icon = SfIcons.GraphicEq,
+                    label = "Slowed + Reverb",
+                    accent = palette.accent,
+                    onClick = it,
+                )
+            }
             if (showSleepTimer) {
                 ActionRow(
                     icon = SfIcons.SleepTimer,

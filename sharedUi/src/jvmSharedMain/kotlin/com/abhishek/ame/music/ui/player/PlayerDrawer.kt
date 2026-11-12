@@ -123,12 +123,14 @@ private fun calculateRubberBandedOffset(rawY: Float): Float {
  */
 @Composable
 fun PlayerDrawer(
-    hazeState: HazeState,
-    title: String,
+    hazeState: HazeState? = null,
+    title: String = "",
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    maxHeight: Dp = 580.dp,
     /** Air between the title and whatever the drawer opens with. */
     titleGap: Dp = 14.dp,
+    scrollable: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val reduceDynamicBlur by PlayerSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
@@ -274,6 +276,15 @@ fun PlayerDrawer(
                     currentOffset = calculateRubberBandedOffset(rawDrag)
                     return Offset(0f, consumed)
                 }
+                // If drawer has been pulled up (rawDrag < 0) and user pulls down (delta > 0),
+                // restore drawer back towards 0 before allowing inner content to scroll.
+                if (rawDrag < 0f && delta > 0f) {
+                    settleJob?.cancel()
+                    val consumed = delta.coerceAtMost(-rawDrag)
+                    rawDrag += consumed
+                    currentOffset = calculateRubberBandedOffset(rawDrag)
+                    return Offset(0f, consumed)
+                }
                 return Offset.Zero
             }
 
@@ -355,7 +366,7 @@ fun PlayerDrawer(
             // The main drawer card
             Column(
                 modifier = Modifier
-                    .heightIn(max = 560.dp)
+                    .heightIn(max = maxHeight)
                     .fillMaxWidth()
                     .onSizeChanged { drawerHeight = it.height }
                     .clip(DRAWER_SHAPE)
@@ -365,7 +376,8 @@ fun PlayerDrawer(
                             frost != null -> with(frost) {
                                 Modifier.frostPanel(DRAWER_SHAPE, MenuFrostDark.copy(alpha = MENU_FROST_ALPHA))
                             }
-                            else -> Modifier.liveMenuFrost(hazeState, MenuFrostDark)
+                            hazeState != null -> Modifier.liveMenuFrost(hazeState, MenuFrostDark)
+                            else -> Modifier.background(MenuFrostDark)
                         }
                     )
                     .clickable(
@@ -409,32 +421,38 @@ fun PlayerDrawer(
                         Box(
                             modifier = Modifier
                                 .size(width = 38.dp, height = 4.5.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.28f)),
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.28f)),
                         )
                     }
 
                     // Title Bar
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontSize = 19.sp,
-                            fontWeight = FontWeight.Bold,
-                        ),
-                        color = Color.White,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 4.dp, bottom = titleGap),
-                    )
+                    if (title.isNotBlank()) {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontSize = 19.sp,
+                                fontWeight = FontWeight.Bold,
+                            ),
+                            color = Color.White,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 4.dp, bottom = titleGap),
+                        )
+                    }
                 }
 
-                // Scrollable Content Area
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
+                if (scrollable) {
+                    // Scrollable Content Area
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        content()
+                    }
+                } else {
                     content()
                 }
             }

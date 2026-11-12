@@ -375,7 +375,11 @@ internal fun LibraryGridShelf(
             horizontalArrangement = Arrangement.spacedBy(LIBRARY_GRID_SPACING),
         ) {
             leadingCard?.let { card -> item(key = "leading") { card() } }
-            items(visibleItems) { item ->
+            items(
+                items = visibleItems,
+                key = { item -> item.videoId ?: item.browseId ?: item.title },
+                contentType = { "shelf_card" },
+            ) { item ->
                 ShelfCard(
                     item = item,
                     onClick = { onItemClick(item) },
@@ -432,7 +436,11 @@ fun LibraryGridPage(
                     )
                 }
             }
-            items(sortedShelf.items, key = { it.browseId ?: it.title }) { item ->
+            items(
+                items = sortedShelf.items,
+                key = { it.browseId ?: it.title },
+                contentType = { "grid_card" },
+            ) { item ->
                 ShelfCard(
                     item = item,
                     onClick = { onItemClick(item) },

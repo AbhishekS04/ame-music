@@ -7,12 +7,14 @@ import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.abhishek.ame.music.BuildConfig
+import com.abhishek.ame.music.data.settings.AppSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -23,13 +25,11 @@ import java.io.File
 /**
  * Ame ships as a sideloaded APK off GitHub Releases rather than through
  * a store, so there's nothing to push an update notice on its own — this
- * polls the repo's "latest release" once per launch and compares its tag
- * against the running build.
+ * polls the repo's releases and compares tags against the running build.
  *
- * The update itself is also handled here: the release's `.apk` asset is
- * downloaded into the app's cache and handed to the system package installer,
- * so the whole round trip stays inside the app instead of bouncing out to a
- * browser.
+ * Supports both Stable and Beta update channels, on-demand checking,
+ * background APK downloading into the app cache, and system package
+ * installer handoff.
  */
 object AppUpdateChecker {
 
@@ -39,6 +39,8 @@ object AppUpdateChecker {
         val apkUrl: String?,
         /** The release's own Markdown body, shown as this update's "what's new". */
         val notes: String?,
+        val isBeta: Boolean = false,
+        val publishedAt: String? = null,
     )
 
     private const val CACHE_SUBDIR = "updates"
@@ -48,13 +50,24 @@ object AppUpdateChecker {
 
     private const val LATEST_RELEASE_URL =
         "https://api.github.com/repos/AbhishekS04/ame-music/releases/latest"
+    private const val ALL_RELEASES_URL =
+        "https://api.github.com/repos/AbhishekS04/ame-music/releases?per_page=20"
 
     private val json = Json { ignoreUnknownKeys = true }
 
     private val _available = MutableStateFlow<UpdateInfo?>(null)
     val available = _available.asStateFlow()
 
-    /** Where this update's APK download currently stands, for the dialog's progress row. */
+    private val _latestStable = MutableStateFlow<UpdateInfo?>(null)
+    val latestStable = _latestStable.asStateFlow()
+
+    private val _latestBeta = MutableStateFlow<UpdateInfo?>(null)
+    val latestBeta = _latestBeta.asStateFlow()
+
+    private val _isChecking = MutableStateFlow(false)
+    val isChecking = _isChecking.asStateFlow()
+
+    /** Where this update's APK download currently stands, for progress rows. */
     sealed interface DownloadState {
         data object Idle : DownloadState
         data class Downloading(val fraction: Float) : DownloadState
@@ -70,73 +83,117 @@ object AppUpdateChecker {
     private var downloadCancelled = false
 
     /**
-     * Reads the repository's latest published release once per launch.
-     *
-     * The repo is public on purpose: this request carries no token and no
-     * account, so it can only read a public "latest release" endpoint. A
-     * private repository answers 404 to an anonymous GET and the app simply
-     * shows no update. Failure is silent — offline, rate-limited or no
-     * releases yet all mean "nothing new".
+     * Reads the repository's published releases to find the latest Stable and Beta builds.
      */
-    suspend fun check() = withContext(Dispatchers.IO) {
+    suspend fun check(force: Boolean = false) = withContext(Dispatchers.IO) {
+        if (_isChecking.value && !force) return@withContext
+        _isChecking.value = true
         runCatching {
             val request = Request.Builder()
-                .url(LATEST_RELEASE_URL)
+                .url(ALL_RELEASES_URL)
                 .header("Accept", "application/vnd.github+json")
                 .build()
 
             Http.client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext
-                val release = json.parseToJsonElement(response.body.string()).jsonObject
+                if (response.isSuccessful) {
+                    val raw = response.body.string()
+                    val releases = json.parseToJsonElement(raw).jsonArray
 
-                // Tags are written "v1.8.0"; the comparison wants "1.8.0".
-                val tag = release["tag_name"]
-                    ?.jsonPrimitive
-                    ?.contentOrNull
-                    ?.trim()
-                    ?.removePrefix("v")
-                    ?.removePrefix("V")
-                    ?: return@withContext
-                if (!isNewer(tag, BuildConfig.VERSION_NAME)) return@withContext
+                    var foundStable: UpdateInfo? = null
+                    var foundBeta: UpdateInfo? = null
 
-                _available.value = UpdateInfo(
-                    version = tag,
-                    releaseUrl = release["html_url"]
-                        ?.jsonPrimitive
-                        ?.contentOrNull
-                        ?: return@withContext,
-                    apkUrl = apkAssetUrl(release),
-                    notes = release["body"]?.jsonPrimitive?.contentOrNull,
-                )
+                    for (element in releases) {
+                        val obj = element as? JsonObject ?: continue
+                        val isDraft = obj["draft"]?.jsonPrimitive?.booleanOrNull ?: false
+                        if (isDraft) continue
+
+                        val isPrerelease = obj["prerelease"]?.jsonPrimitive?.booleanOrNull ?: false
+                        val tag = obj["tag_name"]?.jsonPrimitive?.contentOrNull
+                            ?.trim()
+                            ?.removePrefix("v")
+                            ?.removePrefix("V") ?: continue
+                        val name = obj["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                        val isBetaRelease = isPrerelease ||
+                            tag.contains("beta", ignoreCase = true) ||
+                            name.contains("beta", ignoreCase = true)
+
+                        val info = UpdateInfo(
+                            version = tag,
+                            releaseUrl = obj["html_url"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                            apkUrl = apkAssetUrl(obj),
+                            notes = obj["body"]?.jsonPrimitive?.contentOrNull,
+                            isBeta = isBetaRelease,
+                            publishedAt = obj["published_at"]?.jsonPrimitive?.contentOrNull,
+                        )
+
+                        if (isBetaRelease && foundBeta == null) {
+                            foundBeta = info
+                        } else if (!isBetaRelease && foundStable == null) {
+                            foundStable = info
+                        }
+                        if (foundStable != null && foundBeta != null) break
+                    }
+
+                    if (foundStable != null) _latestStable.value = foundStable
+                    if (foundBeta != null) _latestBeta.value = foundBeta
+                }
             }
+        }.onFailure {
+            // Fallback to latest endpoint if all releases failed or rate limited
+            runCatching {
+                val req = Request.Builder()
+                    .url(LATEST_RELEASE_URL)
+                    .header("Accept", "application/vnd.github+json")
+                    .build()
+                Http.client.newCall(req).execute().use { resp ->
+                    if (resp.isSuccessful) {
+                        val obj = json.parseToJsonElement(resp.body.string()).jsonObject
+                        val tag = obj["tag_name"]?.jsonPrimitive?.contentOrNull
+                            ?.trim()
+                            ?.removePrefix("v")
+                            ?.removePrefix("V") ?: return@use
+                        val info = UpdateInfo(
+                            version = tag,
+                            releaseUrl = obj["html_url"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                            apkUrl = apkAssetUrl(obj),
+                            notes = obj["body"]?.jsonPrimitive?.contentOrNull,
+                            isBeta = false,
+                            publishedAt = obj["published_at"]?.jsonPrimitive?.contentOrNull,
+                        )
+                        _latestStable.value = info
+                    }
+                }
+            }
+        }
+
+        refreshAvailableForChannel(AppSettings.updateChannel.value)
+        _isChecking.value = false
+    }
+
+    /**
+     * Updates [_available] for the chosen channel.
+     */
+    fun refreshAvailableForChannel(channel: AppSettings.UpdateChannel) {
+        val target = when (channel) {
+            AppSettings.UpdateChannel.STABLE -> _latestStable.value
+            AppSettings.UpdateChannel.BETA -> _latestBeta.value ?: _latestStable.value
+        }
+        if (target != null && isNewer(target.version, BuildConfig.VERSION_NAME)) {
+            _available.value = target
+        } else {
+            _available.value = null
         }
     }
 
     /**
-     * Wipes any APK left over from a previous run. Called once at cold start
-     * so a downloaded update is only ever "Install Now" for the session that
-     * downloaded it — the next launch starts clean rather than trying to work
-     * out whether a leftover file is still good.
+     * Wipes any APK left over from a previous run.
      */
     suspend fun clearCache(context: Context) = withContext(Dispatchers.IO) {
         File(context.cacheDir, CACHE_SUBDIR).listFiles()?.forEach { it.delete() }
     }
 
     /**
-     * One release carries the phone app and the TV app, each as a universal
-     * APK plus per-ABI splits:
-     *
-     *     ame-1.8.0.apk      ame-1.8.0_arm64-v8a.apk      ...
-     *     ame-tv-1.8.0.apk   ame-tv-1.8.0_arm64-v8a.apk   ...
-     *
-     * so this app's APKs are the ones named with its own
-     * [BuildConfig.UPDATE_APK_PREFIX]. The phone prefix is `ame-`, which also
-     * prefix-matches the TV assets, so the phone build skips anything under
-     * `ame-tv-` explicitly; the TV build's own prefix is `ame-tv-`. The
-     * universal build (no `_ABI` suffix) is taken first, as it installs
-     * anywhere; failing that, the split for this device's ABI. A release with
-     * neither leaves [UpdateInfo.apkUrl] null and the UI falls back to opening
-     * the releases page.
+     * Returns the download URL for this device's architecture or universal APK.
      */
     private fun apkAssetUrl(release: JsonObject): String? = runCatching {
         val prefix = BuildConfig.UPDATE_APK_PREFIX
@@ -154,27 +211,24 @@ object AppUpdateChecker {
                 if (ours) name.removeSuffix(".apk").removeSuffix(".APK") to url else null
             }
             .orEmpty()
-        apks.firstOrNull { (name, _) -> '_' !in name }?.second
-            ?: Build.SUPPORTED_ABIS.firstNotNullOfOrNull { abi ->
-                apks.firstOrNull { (name, _) -> name.endsWith("_$abi") }?.second
-            }
+        // Prefer device's specific architecture APK (e.g. arm64-v8a) first for optimal size and performance;
+        // fallback to universal build (no `_ABI` suffix) if no matching ABI split was uploaded.
+        Build.SUPPORTED_ABIS.firstNotNullOfOrNull { abi ->
+            apks.firstOrNull { (name, _) -> name.endsWith("_$abi", ignoreCase = true) }?.second
+        } ?: apks.firstOrNull { (name, _) -> '_' !in name }?.second
     }.getOrNull()
 
     /**
-     * Streams the current update's APK into the app cache, reporting progress
-     * through [download]. A finished file survives a cancelled dialog: until
-     * the state is reset, "Install Now" comes straight back without a second
-     * download.
+     * Streams the APK into the app cache, reporting progress through [download].
      */
-    suspend fun downloadApk(context: Context): Unit = withContext(Dispatchers.IO) {
-        val info = _available.value ?: return@withContext
+    suspend fun downloadApk(context: Context, specificInfo: UpdateInfo? = null): Unit = withContext(Dispatchers.IO) {
+        val info = specificInfo ?: _available.value ?: return@withContext
         val url = info.apkUrl ?: return@withContext
         downloadCancelled = false
         _download.value = DownloadState.Downloading(0f)
 
         runCatching {
             val dir = File(context.cacheDir, CACHE_SUBDIR).apply { mkdirs() }
-            // Drop anything left over from an earlier attempt.
             dir.listFiles()?.forEach { it.delete() }
             val target = File(dir, "ame-${info.version}.apk")
 
@@ -227,12 +281,6 @@ object AppUpdateChecker {
 
     /**
      * Hands a downloaded APK to the system installer.
-     *
-     * Sideloaded apps need the user's blessing per app ("install unknown apps");
-     * without it the installer intent silently does nothing on most ROMs, so
-     * the user is sent to that one switch first and taps Install again after.
-     * Some TV builds have no such settings screen; there the installer is
-     * launched anyway and shows its own "not allowed" prompt with a way in.
      */
     fun installApk(context: Context, file: File) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
@@ -260,24 +308,33 @@ object AppUpdateChecker {
         )
     }
 
-    /** A version split into its numeric dotted parts and whether it carries a "-suffix" (e.g. "-beta2"). */
-    private data class ParsedVersion(val parts: List<Int>, val isPreRelease: Boolean)
+    /** A version split into its numeric dotted parts and pre-release suffix info. */
+    private data class ParsedVersion(
+        val parts: List<Int>,
+        val isPreRelease: Boolean,
+        val preReleaseNum: Int = 0,
+    )
 
     private fun parseVersion(raw: String): ParsedVersion {
         val dash = raw.indexOf('-')
         val base = if (dash >= 0) raw.substring(0, dash) else raw
-        return ParsedVersion(base.split(".").map { it.toIntOrNull() ?: 0 }, dash >= 0)
+        val isPre = dash >= 0
+        var preNum = 0
+        if (isPre) {
+            val suffix = raw.substring(dash + 1)
+            preNum = suffix.filter { it.isDigit() }.toIntOrNull() ?: 0
+        }
+        return ParsedVersion(
+            parts = base.split(".").map { it.toIntOrNull() ?: 0 },
+            isPreRelease = isPre,
+            preReleaseNum = preNum,
+        )
     }
 
     /**
-     * Numeric, dot-separated comparison — "1.10" outranks "1.9" — with one
-     * extra rule: a "-betaN" build (see the debug build type's
-     * `versionNameSuffix` in app/build.gradle.kts) is treated as older than a
-     * plain release of the same numbers, since the beta by definition predates
-     * the tag it was testing toward. Without this, a beta and the release it
-     * matches compare equal and testers never get nudged onto the real build.
+     * Numeric, dot-separated comparison with pre-release handling.
      */
-    private fun isNewer(latest: String, current: String): Boolean {
+    fun isNewer(latest: String, current: String): Boolean {
         val l = parseVersion(latest)
         val c = parseVersion(current)
         for (i in 0 until maxOf(l.parts.size, c.parts.size)) {
@@ -285,6 +342,11 @@ object AppUpdateChecker {
             val b = c.parts.getOrElse(i) { 0 }
             if (a != b) return a > b
         }
-        return c.isPreRelease && !l.isPreRelease
+        if (c.isPreRelease && !l.isPreRelease) return true
+        if (!c.isPreRelease && l.isPreRelease) return false
+        if (c.isPreRelease && l.isPreRelease) {
+            return l.preReleaseNum > c.preReleaseNum
+        }
+        return false
     }
 }

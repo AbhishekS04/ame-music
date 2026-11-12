@@ -15,7 +15,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.LocalContentColor
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material3.Icon
+import androidx.compose.ui.text.style.TextDecoration
+import com.abhishek.ame.music.BuildConfig
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,9 +39,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.halilibo.richtext.markdown.Markdown
-import com.halilibo.richtext.ui.RichTextStyle
-import com.halilibo.richtext.ui.material3.RichText
+// import com.halilibo.richtext.markdown.Markdown
+// import com.halilibo.richtext.ui.RichTextStyle
+// import com.halilibo.richtext.ui.material3.RichText
 import com.abhishek.ame.music.R
 import com.abhishek.ame.music.data.AppUpdateChecker
 import com.abhishek.ame.music.data.settings.AppSettings
@@ -147,6 +154,39 @@ fun UpdateAvailableDialog(
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
                 )
+
+                // Old version (strikethrough) -> New version transition
+                Row(
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "v${BuildConfig.VERSION_NAME}",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 13.sp,
+                            textDecoration = TextDecoration.LineThrough,
+                            fontWeight = FontWeight.Medium,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                        contentDescription = null,
+                        modifier = Modifier.size(13.dp),
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "v$version",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                        ),
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+
                 Text(
                     text = when (state) {
                         is AppUpdateChecker.DownloadState.Downloading ->
@@ -158,12 +198,12 @@ fun UpdateAvailableDialog(
                         else ->
                             stringResource(R.string.update_available_body, version)
                     },
-                    modifier = Modifier.padding(top = 4.dp),
+                    modifier = Modifier.padding(top = 2.dp),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontSize = 13.sp,
                         lineHeight = 17.sp,
                     ),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                     textAlign = TextAlign.Center,
                 )
 
@@ -199,43 +239,6 @@ fun UpdateAvailableDialog(
                         color = MaterialTheme.colorScheme.error,
                         textAlign = TextAlign.Center,
                     )
-                }
-
-                // The release's own notes, rendered as Markdown rather than
-                // dumped as raw text — GitHub release bodies lean on headings,
-                // bullet lists and bold for the changelog, and those are the
-                // whole point of reading this before installing.
-                if (!notes.isNullOrBlank()) {
-                    AlertRule(modifier = Modifier.padding(top = 12.dp))
-                    Text(
-                        text = stringResource(R.string.whats_new),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 12.dp),
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.W600,
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        textAlign = TextAlign.Start,
-                    )
-                    Box(
-                        modifier = Modifier
-                            .padding(top = 4.dp)
-                            .heightIn(max = NOTES_MAX_HEIGHT)
-                            .verticalScroll(rememberScrollState()),
-                    ) {
-                        // RichText's Material3 Text leans on LocalContentColor,
-                        // which nothing here provides — this card is a plain
-                        // Column.background(...), not a Surface, so without
-                        // this the notes render at LocalContentColor's black
-                        // default regardless of theme.
-                        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
-                            RichText(style = RichTextStyle.Default) {
-                                Markdown(notes)
-                            }
-                        }
-                    }
                 }
             }
 

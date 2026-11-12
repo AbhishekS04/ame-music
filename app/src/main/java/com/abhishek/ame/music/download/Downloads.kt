@@ -18,6 +18,7 @@ import com.abhishek.ame.music.data.sources.StreamFormat
 import com.abhishek.ame.music.data.sources.TrackMatcher
 import com.abhishek.ame.music.playback.AudioCache
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -149,15 +150,17 @@ object Downloads {
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences("ame_settings", Context.MODE_PRIVATE)
-        _saved.value = runCatching {
-            json.decodeFromString(serializer, prefs.getString(KEY_SAVED, null) ?: "{}")
-        }.getOrDefault(emptyMap())
-        _savedMetadata.value = runCatching {
-            json.decodeFromString(metadataSerializer, prefs.getString(KEY_SAVED_METADATA, null) ?: "{}")
-        }.getOrDefault(emptyMap())
-        _collections.value = runCatching {
-            json.decodeFromString(collectionSerializer, prefs.getString(KEY_SAVED_COLLECTIONS, null) ?: "{}")
-        }.getOrDefault(emptyMap())
+        CoroutineScope(Dispatchers.IO).launch {
+            _saved.value = runCatching {
+                json.decodeFromString(serializer, prefs.getString(KEY_SAVED, null) ?: "{}")
+            }.getOrDefault(emptyMap())
+            _savedMetadata.value = runCatching {
+                json.decodeFromString(metadataSerializer, prefs.getString(KEY_SAVED_METADATA, null) ?: "{}")
+            }.getOrDefault(emptyMap())
+            _collections.value = runCatching {
+                json.decodeFromString(collectionSerializer, prefs.getString(KEY_SAVED_COLLECTIONS, null) ?: "{}")
+            }.getOrDefault(emptyMap())
+        }
     }
 
     // ---- Asking -------------------------------------------------------------

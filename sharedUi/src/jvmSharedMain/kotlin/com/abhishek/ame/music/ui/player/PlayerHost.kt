@@ -145,6 +145,10 @@ interface PlayerHost {
      */
     @Composable
     fun LyricsShareSheet(hazeState: HazeState, request: LyricsShareRequest, onDismiss: () -> Unit) = Unit
+
+    /** The Slowed + Reverb sound shaping drawer over the player. */
+    @Composable
+    fun AudioEffectsSheet(hazeState: HazeState, onDismiss: () -> Unit) = Unit
 }
 
 private val NoCast = MutableStateFlow(CastUi())

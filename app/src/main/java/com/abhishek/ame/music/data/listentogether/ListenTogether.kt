@@ -366,9 +366,9 @@ object ListenTogether {
      * The default party server this build ships pointed at, from `LISTEN_TOGETHER_SERVER`
      * in `local.properties` or build environment.
      */
-    val defaultServer: String = when (val res = parseAndNormalizeServerUrl(BuildConfig.LISTEN_TOGETHER_SERVER)) {
+    val defaultServer: String = when (val res = parseAndNormalizeServerUrl(BuildConfig.LISTEN_TOGETHER_SERVER.ifBlank { "https://ame-listen-together.onrender.com" })) {
         is ServerUrlValidationResult.Valid -> res.normalizedUrl
-        is ServerUrlValidationResult.Invalid -> error("Invalid BuildConfig.LISTEN_TOGETHER_SERVER: ${BuildConfig.LISTEN_TOGETHER_SERVER}")
+        is ServerUrlValidationResult.Invalid -> "https://ame-listen-together.onrender.com"
     }
 
     /**

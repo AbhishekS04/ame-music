@@ -99,6 +99,10 @@ private val HOME_TITLE_LIFT = 28.dp
 private const val RECENTS_TITLE = "Recents"
 private const val RECENT_TRACKS_PER_COLUMN = 4
 
+private val TrackThumbShape = RoundedCornerShape(7.dp)
+private val ShelfCardShape = RoundedCornerShape(12.dp)
+private val HeroCardShape = RoundedCornerShape(18.dp)
+
 private fun List<ShelfItem>.playingItemMatcher(song: Song?): (ShelfItem) -> Boolean {
     song ?: return { false }
     // The card that was played, when the shelf holds it, and only that one —
@@ -298,9 +302,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
     shelves.forEachIndexed { index, shelf ->
         // Find Your Mood follows the lead shelf, as on Apple Music's Home.
         if (index == 1 && onMoodClick != null) {
-            item(key = "find-your-mood") { FindYourMoodShelf(onMoodClick, onMoodsShowAll) }
+            item(key = "find-your-mood", contentType = "find_your_mood") { FindYourMoodShelf(onMoodClick, onMoodsShowAll) }
         }
-        item(key = shelf.title + index) {
+        item(key = shelf.title + index, contentType = "shelf") {
             val openItem: (ShelfItem) -> Unit = { item -> onItemClick(item, shelf.title) }
             // Listen again and Quick picks are lists on the web player, as
             // Recents is here: one pager for all three.
@@ -353,7 +357,11 @@ private fun RecentShelf(
                 contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(shelf.items.chunked(RECENT_TRACKS_PER_COLUMN)) { column ->
+                items(
+                    items = shelf.items.chunked(RECENT_TRACKS_PER_COLUMN),
+                    key = { col -> (col.firstOrNull()?.videoId ?: col.firstOrNull()?.browseId ?: col.firstOrNull()?.title ?: "") + col.hashCode() },
+                    contentType = { "recent_column" },
+                ) { column ->
                     Column(Modifier.width(columnWidth)) {
                         column.forEach { item ->
                             RecentTrackRow(
@@ -449,8 +457,8 @@ fun CompactTrackRow(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .matchParentSize()
-                    .clip(RoundedCornerShape(7.dp))
-                    .thumbnailBorder(RoundedCornerShape(7.dp))
+                    .clip(TrackThumbShape)
+                    .thumbnailBorder(TrackThumbShape)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             )
             if (isCurrent && isPlaying) SearchPlayingBars(Modifier.align(Alignment.Center))
@@ -551,14 +559,23 @@ internal fun SectionHeader(title: String, subtitle: String = "", onShowAll: (() 
             }
         }
         if (onShowAll != null) {
-            Text(
-                text = stringResource(Res.string.show_all),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
+            Box(
                 modifier = Modifier
-                    .clickable(onClick = onShowAll)
-                    .padding(start = 12.dp, top = 4.dp, bottom = 4.dp),
-            )
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = androidx.compose.material3.ripple(bounded = true),
+                        onClick = onShowAll,
+                    )
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = stringResource(Res.string.show_all),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
     }
 }
@@ -754,7 +771,11 @@ private fun HeroShelf(
                 contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                items(shelf.items) { item ->
+                items(
+                    items = shelf.items,
+                    key = { item -> item.videoId ?: item.browseId ?: item.title },
+                    contentType = { "hero_card" },
+                ) { item ->
                     HeroCard(
                         item = item,
                         onClick = { onItemClick(item) },
@@ -783,8 +804,8 @@ private fun HeroCard(
     Box(
         modifier = modifier
             .aspectRatio(HERO_CARD_RATIO)
-            .clip(RoundedCornerShape(18.dp))
-            .thumbnailBorder(RoundedCornerShape(18.dp))
+            .clip(HeroCardShape)
+            .thumbnailBorder(HeroCardShape)
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
             .contextClick(onLongPress),
@@ -853,7 +874,11 @@ internal fun Shelf(
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             leadingCard?.let { card -> item(key = "leading") { card() } }
-            items(shelf.items) { item ->
+            items(
+                items = shelf.items,
+                key = { item -> item.videoId ?: item.browseId ?: item.title },
+                contentType = { if (shelf.layout == ShelfLayout.VIDEO) "video_card" else "shelf_card" },
+            ) { item ->
                 if (shelf.layout == ShelfLayout.VIDEO) {
                     VideoShelfCard(
                         item = item,
@@ -903,8 +928,8 @@ fun VideoShelfCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(VIDEO_ASPECT)
-                .clip(RoundedCornerShape(12.dp))
-                .thumbnailBorder(RoundedCornerShape(12.dp))
+                .clip(ShelfCardShape)
+                .thumbnailBorder(ShelfCardShape)
                 .background(placeholderColor),
         ) {
             AsyncImage(
@@ -1057,7 +1082,7 @@ internal fun ShelfCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(1f)
-                        .clip(RoundedCornerShape(12.dp)),
+                        .clip(ShelfCardShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     MeshGradientBackground(
@@ -1099,8 +1124,8 @@ internal fun ShelfCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .thumbnailBorder(RoundedCornerShape(12.dp))
+                        .clip(ShelfCardShape)
+                        .thumbnailBorder(ShelfCardShape)
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                 ) {
                     AsyncImage(
