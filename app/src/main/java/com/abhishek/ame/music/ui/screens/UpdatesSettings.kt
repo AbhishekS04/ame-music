@@ -107,10 +107,9 @@ fun UpdatesSettingsContent(
 
     val targetRelease = when (currentChannel) {
         AppSettings.UpdateChannel.STABLE -> latestStable
-        AppSettings.UpdateChannel.BETA -> latestBeta ?: latestStable
+        AppSettings.UpdateChannel.BETA -> latestBeta
     }
 
-    val isDifferent = targetRelease != null && targetRelease.version != BuildConfig.VERSION_NAME
     val isNewer = targetRelease != null && AppUpdateChecker.isNewer(targetRelease.version, BuildConfig.VERSION_NAME)
 
     val updater = remember(context) { Updater(context) }
@@ -192,7 +191,7 @@ fun UpdatesSettingsContent(
                         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.5.sp),
                         color = HeaderTextColor,
                     )
-                } else if (isDifferent && targetRelease != null) {
+                } else if (isNewer && targetRelease != null) {
                     Icon(
                         imageVector = SfIcons.Download,
                         contentDescription = null,
@@ -276,7 +275,7 @@ fun UpdatesSettingsContent(
                     }
                 }
 
-                isDifferent && targetRelease != null -> {
+                isNewer && targetRelease != null -> {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -480,7 +479,7 @@ fun UpdatesSettingsContent(
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = "v${targetRelease?.version ?: BuildConfig.VERSION_NAME} • ${if (isBeta) "Beta" else "Stable"}",
+                        text = "v${if (isNewer) targetRelease?.version else BuildConfig.VERSION_NAME} • ${if (isBeta) "Beta" else "Stable"}",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontSize = 13.sp,
                         ),
@@ -508,7 +507,7 @@ fun UpdatesSettingsContent(
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 14.dp),
                 ) {
-                    val notes = targetRelease?.notes?.takeIf { it.isNotBlank() }
+                    val notes = (if (isNewer) targetRelease?.notes else null)?.takeIf { it.isNotBlank() }
                         ?: "No changelog published for this build."
                     CompositionLocalProvider(LocalContentColor provides Color.White) {
                         RichText(style = RichTextStyle.Default) {

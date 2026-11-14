@@ -176,7 +176,7 @@ object AppUpdateChecker {
     fun refreshAvailableForChannel(channel: AppSettings.UpdateChannel) {
         val target = when (channel) {
             AppSettings.UpdateChannel.STABLE -> _latestStable.value
-            AppSettings.UpdateChannel.BETA -> _latestBeta.value ?: _latestStable.value
+            AppSettings.UpdateChannel.BETA -> _latestBeta.value
         }
         if (target != null && isNewer(target.version, BuildConfig.VERSION_NAME)) {
             _available.value = target

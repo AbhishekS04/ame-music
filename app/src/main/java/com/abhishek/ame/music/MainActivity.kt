@@ -562,6 +562,7 @@ private fun AmeApp(
     // below goes with them, which is the part that costs a draw pass.
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val progressiveBlur by AppSettings.progressiveBlur.collectAsStateWithLifecycle()
+    val musicFirst by AppSettings.musicFirst.collectAsStateWithLifecycle()
     val glassSamplesBackdrop = glassActive && !reduceDynamicBlur
     // What folds [GlassNavBar] between its expanded and inline shapes. Held here
     // rather than inside the bar because the page's scroll is what drives it,
@@ -1608,23 +1609,35 @@ private fun AmeApp(
         )
         playFrom(songs, index, source)
     }
-    LaunchedEffect(player.song?.videoId) {
-        if (optimisticVersionSong?.videoId == player.song?.videoId ||
-            (optimisticVersionSong != null && player.song?.videoId != convertedAudioId && player.song?.videoId != convertedVideoId && player.song?.videoId != keepVideoId)
+    LaunchedEffect(player.song?.videoId, musicFirst) {
+        val currentSong = player.song
+        if (optimisticVersionSong?.videoId == currentSong?.videoId ||
+            (optimisticVersionSong != null && currentSong?.videoId != convertedAudioId && currentSong?.videoId != convertedVideoId && currentSong?.videoId != keepVideoId)
         ) {
             optimisticVersionSong = null
         }
-        if (activeRadioSeed?.first != player.song?.videoId) activeRadioSeed = null
-        if (keepVideoId != player.song?.videoId) keepVideoId = null
-        if (player.song?.videoId != convertedAudioId) {
+        if (activeRadioSeed?.first != currentSong?.videoId) activeRadioSeed = null
+        if (keepVideoId != currentSong?.videoId) keepVideoId = null
+        if (currentSong?.videoId != convertedAudioId) {
             convertedFromVideo = null
             convertedAudioId = null
             switchingAudioVersion = false
         }
-        if (player.song?.videoId != convertedVideoId) {
+        if (currentSong?.videoId != convertedVideoId) {
             convertedFromAudio = null
             convertedVideoId = null
             switchingAudioVersion = false
+        }
+
+        // Auto-convert video to official audio if musicFirst is enabled
+        if (musicFirst && currentSong != null && currentSong.isVideo &&
+            !PlayerPlatform.host.explicitVideos.value.contains(currentSong.videoId) &&
+            currentSong.videoId != keepVideoId &&
+            currentSong.videoId != convertedAudioId &&
+            currentSong.videoId !in missingVersions &&
+            !switchingAudioVersion
+        ) {
+            switchToMusicOnly(currentSong, pauseWhileResolving = false)
         }
     }
 

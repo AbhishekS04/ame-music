@@ -383,6 +383,10 @@ fun MiniPlayer(
     modifier: Modifier = Modifier,
 ) {
     val reduceDynamicBlur by PlayerPlatform.host.settings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val musicFirst by PlayerPlatform.host.settings.musicFirst.collectAsStateWithLifecycle()
+    val explicitVideos by PlayerPlatform.host.explicitVideos.collectAsStateWithLifecycle()
+    val isExplicitVideo = explicitVideos.contains(song.videoId)
+    val showAsVideo = song.isVideo && (!musicFirst || isExplicitVideo)
     val haptics = rememberHaptics()
     // percent rather than a dp figure, so the corner stays exactly half the
     // height if the row's contents ever change it — which is what keeps a pill
@@ -435,7 +439,7 @@ fun MiniPlayer(
             // A music video plays here at its own 16:9, as the web player's
             // mini player does, rather than cropped into the square cover.
             val artWidth by animateDpAsState(
-                targetValue = if (song.isVideo) VIDEO_ART_WIDTH else 40.dp,
+                targetValue = if (showAsVideo) VIDEO_ART_WIDTH else 40.dp,
                 label = "miniArtWidth",
             )
             Box(
@@ -455,7 +459,7 @@ fun MiniPlayer(
                 // A music video keeps playing in the cover's place, cropped to
                 // it, as the web player's mini player does — the full player,
                 // when it is up, takes the picture over.
-                if (song.isVideo) {
+                if (showAsVideo) {
                     PlayerPlatform.host.MusicVideo(
                         videoId = song.videoId,
                         fit = false,

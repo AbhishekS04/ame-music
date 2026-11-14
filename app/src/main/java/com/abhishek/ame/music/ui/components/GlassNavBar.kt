@@ -76,6 +76,9 @@ import com.abhishek.ame.music.ui.icons.AmeIcons
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.abhishek.ame.music.data.settings.AppSettings
+import com.abhishek.ame.music.ui.player.PlayerPlatform
 
 /**
  * The liquid glass navigation bar: the iOS 26 shape where the now playing
@@ -338,6 +341,10 @@ private fun GlassNowPlaying(
     modifier: Modifier = Modifier,
 ) {
     val haptics = rememberHaptics()
+    val musicFirst by AppSettings.musicFirst.collectAsStateWithLifecycle()
+    val explicitVideos by PlayerPlatform.host.explicitVideos.collectAsStateWithLifecycle()
+    val isExplicitVideo = explicitVideos.contains(song.videoId)
+    val showAsVideo = song.isVideo && (!musicFirst || isExplicitVideo)
     val pressSource = remember { MutableInteractionSource() }
     val isPressed by pressSource.collectIsPressedAsState()
     val pressScale by animateFloatAsState(
@@ -415,7 +422,7 @@ private fun GlassNowPlaying(
             // A music video plays in the cover's place at its own 16:9, as in
             // the floating mini player; the full player takes it over when up.
             val artWidth by animateDpAsState(
-                targetValue = if (song.isVideo) ACCESSORY_ART_SIZE * (16f / 9f) else ACCESSORY_ART_SIZE,
+                targetValue = if (showAsVideo) ACCESSORY_ART_SIZE * (16f / 9f) else ACCESSORY_ART_SIZE,
                 label = "glassMiniArtWidth",
             )
             Box(
@@ -433,7 +440,7 @@ private fun GlassNowPlaying(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                 )
-                if (song.isVideo) {
+                if (showAsVideo) {
                     AndroidMusicVideo(
                         videoId = song.videoId,
                         fit = false,

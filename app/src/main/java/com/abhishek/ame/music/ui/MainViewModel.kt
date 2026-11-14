@@ -1507,6 +1507,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
         viewModelScope.launch {
+            AppSettings.musicFirst.drop(1).collect {
+                refresh(Feed.HOME)
+                if (exploreRequested) refresh(Feed.EXPLORE)
+            }
+        }
+        viewModelScope.launch {
             combine(
                 AppSettings.smbHost,
                 AppSettings.smbShare,
