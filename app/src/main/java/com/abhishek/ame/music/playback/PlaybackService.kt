@@ -9417,101 +9417,80 @@ class PlaybackService : MediaLibraryService() {
         }
 
         /**
-         * Watches system spatial audio state and syncs our app's toggles.
-         * This prevents the app toggle from being out of sync when user changes
-         * system settings (e.g., Samsung's Dolby toggle in notification panel).
-         * 
-         * Also AUTO-ENABLES our toggle when:
-         * - User plugs in headphones and system enables DeepField/Dolby
-         * - User manually enables spatial audio in system settings
+         * Watches system spatial audio state and syncs our app's spatial audio toggle.
+         * Only manages generic spatial audio (e.g. Dirac or Android Spatializer).
+         *
+         * Dolby Atmos (E-AC-3 JOC) is an explicit user preference for stream selection
+         * and hardware decoding; it is never auto-disabled or overridden by system polling.
          */
         suspend fun watchSystemSpatialAudio(context: Context) {
             kotlinx.coroutines.delay(2000) // Wait for service to fully start
-            
+
             val spatialType = com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.detect(context)
-            
+
+            // Dolby Atmos and Vivo DeepField are user-controlled and must not be polled
+            if (spatialType == com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.SpatialAudioType.DOLBY_ATMOS ||
+                spatialType == com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.SpatialAudioType.DEEPFIELD
+            ) {
+                return
+            }
+
             while (true) {
                 try {
                     val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
-                    
+
                     // For Android 13+ with Spatializer API
                     if (audioManager != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                         val spatializer = audioManager.spatializer
                         val systemSpatialActive = spatializer?.isEnabled == true && spatializer.isAvailable
-                        
-                        val ourDolbyEnabled = AppSettings.dolbyAtmos.value
+
                         val ourSpatialEnabled = AppSettings.spatialAudio.value
-                        val ourAnythingEnabled = ourDolbyEnabled || ourSpatialEnabled
-                        
+
                         when {
                             // System enabled it, but our toggle is OFF → AUTO-ENABLE
-                            systemSpatialActive && !ourAnythingEnabled -> {
-                                when (spatialType) {
-                                    com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.SpatialAudioType.DOLBY_ATMOS -> {
-                                        AppSettings.setDolbyAtmos(true)
-                                    }
-                                    else -> {
-                                        AppSettings.setSpatialAudio(true)
-                                    }
-                                }
+                            systemSpatialActive && !ourSpatialEnabled -> {
+                                AppSettings.setSpatialAudio(true)
                             }
-                            
+
                             // System disabled it, but our toggle is ON → AUTO-DISABLE
-                            !systemSpatialActive && ourAnythingEnabled -> {
-                                if (ourDolbyEnabled) AppSettings.setDolbyAtmos(false)
-                                if (ourSpatialEnabled) AppSettings.setSpatialAudio(false)
+                            !systemSpatialActive && ourSpatialEnabled -> {
+                                AppSettings.setSpatialAudio(false)
                             }
                         }
                     } else {
-                        // For older Android or devices without Spatializer API
-                        // Only handle Dolby/Dirac auto-enable (NOT Vivo DeepField)
-                        // Vivo users control DeepField through system equalizer only
-                        
-                        if (spatialType != com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.SpatialAudioType.DEEPFIELD) {
+                        // For older Android or devices without Spatializer API (e.g., OnePlus/Oppo Dirac)
+                        if (spatialType == com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.SpatialAudioType.DIRAC) {
                             // Check audio routing for headphone connection
                             val devices = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
                                 audioManager?.getDevices(android.media.AudioManager.GET_DEVICES_OUTPUTS) ?: emptyArray()
                             } else {
                                 emptyArray()
                             }
-                            
+
                             val hasHeadphones = devices.any { device ->
                                 device.type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
                                 device.type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET ||
                                 device.type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
                                 device.type == android.media.AudioDeviceInfo.TYPE_USB_HEADSET
                             }
-                            
+
                             val ourSpatialEnabled = AppSettings.spatialAudio.value
-                            val ourDolbyEnabled = AppSettings.dolbyAtmos.value
-                            
+
                             // For Dirac: Auto-enable when headphones are plugged in
-                            if (hasHeadphones && !ourSpatialEnabled && !ourDolbyEnabled) {
-                                when (spatialType) {
-                                    com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.SpatialAudioType.DIRAC -> {
-                                        // Auto-enable spatial audio when headphones connected
-                                        AppSettings.setSpatialAudio(true)
-                                    }
-                                    com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.SpatialAudioType.DOLBY_ATMOS -> {
-                                        // Auto-enable Dolby when headphones connected
-                                        AppSettings.setDolbyAtmos(true)
-                                    }
-                                    else -> { /* Do nothing for other types */ }
-                                }
+                            if (hasHeadphones && !ourSpatialEnabled) {
+                                AppSettings.setSpatialAudio(true)
                             }
-                            
+
                             // Auto-disable when headphones are unplugged (only for Dirac)
                             if (!hasHeadphones && ourSpatialEnabled) {
-                                if (spatialType == com.abhishek.ame.music.playback.audio.DeviceAudioCapabilities.SpatialAudioType.DIRAC) {
-                                    AppSettings.setSpatialAudio(false)
-                                }
+                                AppSettings.setSpatialAudio(false)
                             }
                         }
                     }
                 } catch (e: Exception) {
                     // Ignore errors
                 }
-                
+
                 // Check every 3 seconds (faster response for headphone plug/unplug)
                 kotlinx.coroutines.delay(3000)
             }

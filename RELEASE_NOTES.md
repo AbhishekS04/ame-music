@@ -1,40 +1,36 @@
-# Ame v0.1.4
+# Ame v0.1.5
 
-Dynamic 120Hz scrolling performance, zero-jank startup pipeline, in-app update channel switching (Stable & Beta), hardware audio effects & reverb engine, and Feral UI sky shader.
+Dolby Atmos persistence fix on OEM devices, automatic audio conversion for "Play Audio First" with clean square minibar posters, instant settings-to-feed synchronization without pull-to-refresh, and decoupled Beta vs. Stable release channel checks.
 
 ## Mobile (Android)
 
 | Build | File |
 |---|---|
-| Universal (recommended) | `ame-0.1.4.apk` |
-| arm64-v8a | `ame-0.1.4_arm64-v8a.apk` |
-| armeabi-v7a | `ame-0.1.4_armeabi-v7a.apk` |
-| x86_64 (emulator / Chromebook) | `ame-0.1.4_x86_64.apk` |
+| Universal (recommended) | `ame-0.1.5.apk` |
+| arm64-v8a | `ame-0.1.5_arm64-v8a.apk` |
+| armeabi-v7a | `ame-0.1.5_armeabi-v7a.apk` |
+| x86_64 (emulator / Chromebook) | `ame-0.1.5_x86_64.apk` |
 
 ## Android TV
 
 | Build | File |
 |---|---|
-| Universal (recommended) | `ame-tv-0.1.4.apk` |
-| arm64-v8a | `ame-tv-0.1.4_arm64-v8a.apk` |
-| armeabi-v7a | `ame-tv-0.1.4_armeabi-v7a.apk` |
-| x86_64 (emulator) | `ame-tv-0.1.4_x86_64.apk` |
+| Universal (recommended) | `ame-tv-0.1.5.apk` |
+| arm64-v8a | `ame-tv-0.1.5_arm64-v8a.apk` |
+| armeabi-v7a | `ame-tv-0.1.5_armeabi-v7a.apk` |
+| x86_64 (emulator) | `ame-tv-0.1.5_x86_64.apk` |
 
 ## What's Changed
 
-### ⚡ 120Hz High-Refresh Scrolling & Zero-Jank Startup
-- **Asynchronous Disk & Cache Initialization:** Moved Downloads and Search History parsing off the main thread to background coroutines, unblocking cold startup to the very first frame.
-- **Compose List Recycling & Allocation Pruning:** Added explicit `contentType` and stable keys to LazyColumn and LazyRow items across Home, Library, and Explore screens to reuse composition slots. Constant-pooled repeated `RoundedCornerShape` instances to eliminate GC churn during fast flings.
-- **Compose Stability Contract:** Implemented `compose_stability_config.conf` declaring multi-module models and collections as stable, enabling Compose to skip unnecessary recompositions across the entire UI tree.
-- **Recomposition Boundary Tightening:** Scoped playback quality caps within search callbacks and wrapped sort state with `derivedStateOf` to prevent full app root recompositions.
+### 🔊 Dolby Atmos Stability & OEM DSP Decoupling
+- **Decoupled Stream Preference from AOSP Spatializer:** Fixed a critical issue on Samsung and other Dolby Atmos-certified devices where a 3-second background polling loop mistakenly detected non-multichannel streams as inactive spatial audio and forcefully toggled off Dolby Atmos in the app.
+- **Persistent User Preference:** Dolby Atmos stream selection is now strictly user-controlled, ensuring Atmos streams (E-AC-3 JOC) remain active without interference while Dirac and system equalizers remain fully supported.
 
-### 🔄 In-App Updates & Release Channels
-- **Release Channel Switching:** Toggle between **Stable** (verified daily builds) and **Beta** (bleeding-edge preview builds) directly within Settings.
-- **Direct In-App Updates:** Check for updates, inspect full release notes/changelogs, download APKs in the background with progress tracking, and trigger automatic package installer handoffs.
+### 🎵 "Play Audio First" Auto-Conversion & Minibar Fixes
+- **Automatic Audio Version Resolution:** When "Play Audio First" is enabled, queued or played video tracks automatically resolve and swap to their official high-fidelity album release without requiring manual menu actions.
+- **Clean Square Minibar Posters:** Fixed minibar poster presentation so audio tracks always maintain a crisp 1:1 aspect ratio and show official artwork instead of stretching or attempting to initialize an empty video surface.
+- **Instant Feed Synchronization:** Toggling "Play Audio First" in Settings now instantly updates Home and Explore shelves without requiring a manual pull-to-refresh.
 
-### 🎛️ Audio Effects & Reverb Engine
-- **Hardware Audio Capabilities:** Dynamic detection of device audio hardware capabilities (Dolby Atmos, high-resolution 32-bit float PCM output).
-- **Audio Effects Panel & Presets:** Dedicated hardware audio effects control panel with custom acoustic reverb presets and tuning.
-
-### 🌌 Dynamic Feral UI Sky Shader
-- Added dynamic sky shader backdrop with hardware AGSL rendering on modern Android devices and graceful JVM fallback.
+### 🔄 Clean Update Channel Logic (Stable vs. Beta)
+- **Strict Channel Separation:** The Beta channel now exclusively tracks genuine pre-releases instead of falling back to the stable release.
+- **Accurate Update Notifications:** Fixed the version comparison logic to only prompt for updates when a newer version exists, preventing erroneous "Update available" alerts when switching channels.
