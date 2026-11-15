@@ -4813,6 +4813,95 @@ private fun AmeApp(
                 },
             )
         }
+
+        // ---- Add to playlist / new playlist (shared across main window and player sheet) ----
+        val playlistPickersContent: @Composable () -> Unit = {
+            if (playlistTarget != null || creatingPlaylist) {
+                val target = playlistTarget
+                val dismiss = {
+                    playlistTarget = null
+                    creatingPlaylist = false
+                }
+                PlaylistPickerSheet(
+                    playlists = playlists,
+                    loading = playlistsLoading,
+                    song = target,
+                    startCreating = target == null,
+                    onDismiss = dismiss,
+                    onAdd = { picked ->
+                        target?.let { song ->
+                            viewModel.addToPlaylists(picked, song) { added, alreadyThere, failed ->
+                                showQueueNotice(
+                                    when {
+                                        added > 1 -> context.resources.getQuantityString(
+                                            R.plurals.added_to_playlists_notice, added, added,
+                                        )
+                                        added == 1 -> context.getString(R.string.song_added_to_playlist)
+                                        alreadyThere > 0 && failed == 0 ->
+                                            context.getString(R.string.song_already_in_playlist)
+                                        else -> context.getString(R.string.failed)
+                                    },
+                                )
+                            }
+                        }
+                    },
+                    onCreate = { title, privacy ->
+                        viewModel.createPlaylist(title, privacy, target)
+                    },
+                )
+            }
+
+            if (offlinePlaylistTarget != null || creatingOfflinePlaylist) {
+                val target = offlinePlaylistTarget
+                val dismiss = {
+                    offlinePlaylistTarget = null
+                    creatingOfflinePlaylist = false
+                }
+                val choices = remember(offlinePlaylists) {
+                    offlinePlaylists.map { playlist ->
+                        UserPlaylist(
+                            playlistId = playlist.id,
+                            title = playlist.title,
+                            subtitle = context.resources.getQuantityString(
+                                R.plurals.song_count_plural,
+                                playlist.songs.size,
+                                playlist.songs.size,
+                            ),
+                            thumbnailUrl = playlist.songs.firstNotNullOfOrNull { it.thumbnailUrl }
+                                .takeUnless { playlist.isLiked },
+                        )
+                    }
+                }
+                PlaylistPickerSheet(
+                    playlists = choices,
+                    loading = false,
+                    song = target,
+                    startCreating = target == null,
+                    offline = true,
+                    onDismiss = dismiss,
+                    onAdd = { picked ->
+                        target?.let { song ->
+                            val result = OfflinePlaylists.add(picked.mapTo(HashSet()) { it.playlistId }, listOf(song))
+                            showQueueNotice(
+                                when {
+                                    result.added > 1 -> context.resources.getQuantityString(
+                                        R.plurals.added_to_playlists_notice, result.added, result.added,
+                                    )
+                                    result.added == 1 -> context.getString(R.string.song_added_to_playlist)
+                                    result.alreadyThere > 0 -> context.getString(R.string.song_already_in_playlist)
+                                    else -> context.getString(R.string.failed)
+                                },
+                            )
+                        }
+                    },
+                    onCreate = { title, _ ->
+                        OfflinePlaylists.create(title, listOfNotNull(target))
+                        if (target != null) showQueueNotice(context.getString(R.string.song_added_to_playlist))
+                    },
+                )
+            }
+        }
+
         // ---- Now Playing ----
         if (playerRaised) {
             // What rememberModalBottomSheetState builds, but able to start open,
@@ -4968,6 +5057,9 @@ private fun AmeApp(
                     ) { song ->
                         songMenuBody(song)
                     }
+                    if (playerRaised) {
+                        playlistPickersContent()
+                    }
                 }
             }
         }
@@ -5042,7 +5134,13 @@ private fun AmeApp(
             // A player menu goes with the player: left up, it would carry on here,
             // over the page.
             LaunchedEffect(playerRaised) {
-                if (!playerRaised && menuFromPlayer) songActions = null
+                if (!playerRaised && menuFromPlayer) {
+                    songActions = null
+                    playlistTarget = null
+                    creatingPlaylist = false
+                    offlinePlaylistTarget = null
+                    creatingOfflinePlaylist = false
+                }
             }
             IosMenuPopover(
                 item = songActions?.takeIf { songMenuOrigin == null && !(menuFromPlayer && playerRaised) },
@@ -5064,100 +5162,9 @@ private fun AmeApp(
             }
         }
 
-        // ---- Add to playlist / new playlist ----
-        // One sheet for both, because they are one decision: the list of
-        // playlists with a way to make another. `creatingPlaylist` opens it
-        // straight onto the form, which is what the Library tile means.
-        if (playlistTarget != null || creatingPlaylist) {
-            val target = playlistTarget
-            val dismiss = {
-                playlistTarget = null
-                creatingPlaylist = false
-            }
-            PlaylistPickerSheet(
-                playlists = playlists,
-                loading = playlistsLoading,
-                song = target,
-                startCreating = target == null,
-                onDismiss = dismiss,
-                onAdd = { picked ->
-                    target?.let { song ->
-                        viewModel.addToPlaylists(picked, song) { added, alreadyThere, failed ->
-                            // One line for the whole batch, saying the outcome
-                            // that matters most: what went in, else that it was
-                            // all there already, else that it didn't work.
-                            showQueueNotice(
-                                when {
-                                    added > 1 -> context.resources.getQuantityString(
-                                        R.plurals.added_to_playlists_notice, added, added,
-                                    )
-                                    added == 1 -> context.getString(R.string.song_added_to_playlist)
-                                    alreadyThere > 0 && failed == 0 ->
-                                        context.getString(R.string.song_already_in_playlist)
-                                    else -> context.getString(R.string.failed)
-                                },
-                            )
-                        }
-                    }
-                },
-                onCreate = { title, privacy ->
-                    viewModel.createPlaylist(title, privacy, target)
-                },
-            )
-        }
-
-        // ---- Add to a device playlist / new device playlist ----
-        // The sheet above over the offline player's own playlists, for a track
-        // that is a file on this device. Nothing here waits on a network, so
-        // there is no loading state and the outcome is known on the tap.
-        if (offlinePlaylistTarget != null || creatingOfflinePlaylist) {
-            val target = offlinePlaylistTarget
-            val dismiss = {
-                offlinePlaylistTarget = null
-                creatingOfflinePlaylist = false
-            }
-            val choices = remember(offlinePlaylists) {
-                offlinePlaylists.map { playlist ->
-                    UserPlaylist(
-                        playlistId = playlist.id,
-                        title = playlist.title,
-                        subtitle = context.resources.getQuantityString(
-                            R.plurals.song_count_plural,
-                            playlist.songs.size,
-                            playlist.songs.size,
-                        ),
-                        thumbnailUrl = playlist.songs.firstNotNullOfOrNull { it.thumbnailUrl }
-                            .takeUnless { playlist.isLiked },
-                    )
-                }
-            }
-            PlaylistPickerSheet(
-                playlists = choices,
-                loading = false,
-                song = target,
-                startCreating = target == null,
-                offline = true,
-                onDismiss = dismiss,
-                onAdd = { picked ->
-                    target?.let { song ->
-                        val result = OfflinePlaylists.add(picked.mapTo(HashSet()) { it.playlistId }, listOf(song))
-                        showQueueNotice(
-                            when {
-                                result.added > 1 -> context.resources.getQuantityString(
-                                    R.plurals.added_to_playlists_notice, result.added, result.added,
-                                )
-                                result.added == 1 -> context.getString(R.string.song_added_to_playlist)
-                                result.alreadyThere > 0 -> context.getString(R.string.song_already_in_playlist)
-                                else -> context.getString(R.string.failed)
-                            },
-                        )
-                    }
-                },
-                onCreate = { title, _ ->
-                    OfflinePlaylists.create(title, listOfNotNull(target))
-                    if (target != null) showQueueNotice(context.getString(R.string.song_added_to_playlist))
-                },
-            )
+        // ---- Add to playlist / new playlist (when player is minimized or closed) ----
+        if (!playerRaised) {
+            playlistPickersContent()
         }
 
         if (showSpotifyImportDialog) {

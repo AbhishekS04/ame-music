@@ -133,6 +133,7 @@ fun PlaylistPickerSheet(
         onDismiss = onDismiss,
         maxHeight = 640.dp,
         scrollable = false,
+        modifier = Modifier.imePadding(),
     ) {
         BackHandler {
             if (creating && !startCreating) creating = false else closeAfter {}

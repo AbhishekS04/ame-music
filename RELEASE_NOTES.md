@@ -1,6 +1,6 @@
 # Ame v0.1.5
 
-Dolby Atmos persistence fix on OEM devices, automatic audio conversion for "Play Audio First" with clean square minibar posters, instant settings-to-feed synchronization without pull-to-refresh, and decoupled Beta vs. Stable release channel checks.
+Dolby Atmos persistence fix on OEM devices, automatic audio conversion for "Play Audio First" with clean square minibar posters, instant settings-to-feed synchronization without pull-to-refresh, in-player "Add to Playlist" dialog positioning, and reliable in-app package installer handoff.
 
 ## Mobile (Android)
 
@@ -21,6 +21,10 @@ Dolby Atmos persistence fix on OEM devices, automatic audio conversion for "Play
 | x86_64 (emulator) | `ame-tv-0.1.5_x86_64.apk` |
 
 ## What's Changed
+
+### 🛠️ In-App Updater & In-Player Playlist Picker Fixes
+- **Modern Package Installer Hand-off:** Fixed the in-app APK updater on Android 12+ / One UI where downloading succeeded but tapping "Install Now" failed to trigger the system update prompt. Replaced deprecated `ACTION_INSTALL_PACKAGE` and conflicting `EXTRA_RETURN_RESULT` flags with standard `ACTION_VIEW` and explicit URI read permissions.
+- **In-Player "Add to Playlist" Sheet:** Fixed "Add to Playlist" from the full player's `⋯` menu opening in the background underneath the player. The playlist drawer now appears directly on the music playing screen with smooth animations, keyboard avoidance, and uninterrupted playback.
 
 ### 🔊 Dolby Atmos Stability & OEM DSP Decoupling
 - **Decoupled Stream Preference from AOSP Spatializer:** Fixed a critical issue on Samsung and other Dolby Atmos-certified devices where a 3-second background polling loop mistakenly detected non-multichannel streams as inactive spatial audio and forcefully toggled off Dolby Atmos in the app.
