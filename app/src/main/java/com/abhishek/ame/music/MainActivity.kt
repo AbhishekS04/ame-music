@@ -425,12 +425,13 @@ class MainActivity : AppCompatActivity() {
             LaunchedEffect(highPerformance, performanceRefreshRate, composeView) {
                 applyPerformanceMode(highPerformance, performanceRefreshRate, composeView)
             }
+            val isAmoled = theme == ThemeMode.AMOLED
             val darkTheme = when (theme) {
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
                 ThemeMode.LIGHT -> false
-                ThemeMode.DARK -> true
+                ThemeMode.DARK, ThemeMode.AMOLED -> true
             }
-            AmeTheme(darkTheme = darkTheme, font = appFont) {
+            AmeTheme(darkTheme = darkTheme, isAmoled = isAmoled, font = appFont) {
                 // The glass surfaces sample this layer, and a layer records only
                 // what is drawn into it — which, for Ame, is a page that
                 // paints no background of its own. Everywhere a page is not

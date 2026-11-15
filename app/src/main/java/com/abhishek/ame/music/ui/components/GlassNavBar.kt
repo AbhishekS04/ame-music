@@ -126,7 +126,7 @@ fun GlassNavBar(
     // lambda, which the tab bar sees as a changed argument and recomposes on.
     val pillShape = remember { RoundedCornerShape(percent = 50) }
     val contentColor = glassContentColor()
-    val selectedColor = contentColor
+    val selectedColor = Color(0xFFFA2D48)
     val unselectedColor = contentColor.copy(alpha = 0.65f)
     val haptics = rememberHaptics()
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -276,9 +276,7 @@ fun GlassNavBar(
     ) {
         tabs.forEachIndexed { index, tab ->
             val isSelected = index == selectedIndex
-            val isSearch = index == searchIndex
-            val isHome = index == 0
-            val tint = if (isSelected || isSearch || isHome) selectedColor else unselectedColor
+            val tint = if (isSelected) selectedColor else unselectedColor
             val onClick = {
                 if (!isSelected) haptics.play(Haptic.Select)
                 currentOnTabSelected(index)

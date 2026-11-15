@@ -48,6 +48,18 @@ val DarkColors = darkColorScheme(
     outline = Color(0xFF2C2C2E),
 )
 
+val AmoledColors = darkColorScheme(
+    primary = Color.White,
+    onPrimary = Color.Black,
+    background = Color.Black,
+    onBackground = Color.White,
+    surface = Color.Black,
+    onSurface = Color.White,
+    surfaceVariant = Color(0xFF101010),
+    onSurfaceVariant = Color(0xFF8E8E93),
+    outline = Color(0xFF222222),
+)
+
 val LightColors = lightColorScheme(
     primary = Color.Black,
     onPrimary = Color.White,
@@ -146,11 +158,17 @@ private fun Typography.withFamily(family: FontFamily) = Typography(
 @Composable
 fun AmeTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    isAmoled: Boolean = false,
     font: AppFont = AppFont.DEFAULT,
     content: @Composable () -> Unit,
 ) {
+    val colors = when {
+        isAmoled -> AmoledColors
+        darkTheme -> DarkColors
+        else -> LightColors
+    }
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
+        colorScheme = colors,
         typography = when (font) {
             AppFont.DEFAULT -> typography(sfProDisplay(), legacy = false)
             AppFont.LEGACY -> typography(sfProDisplayLegacy(), legacy = true)

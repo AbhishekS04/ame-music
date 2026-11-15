@@ -1936,13 +1936,12 @@ private fun DownloadQuality.localizedLabel(): String = stringResource(
 )
 
 @Composable
-private fun ThemeMode.localizedLabel(): String = stringResource(
-    when (this) {
-        ThemeMode.SYSTEM -> R.string.system
-        ThemeMode.LIGHT -> R.string.light
-        ThemeMode.DARK -> R.string.dark
-    },
-)
+private fun ThemeMode.localizedLabel(): String = when (this) {
+    ThemeMode.SYSTEM -> stringResource(R.string.system)
+    ThemeMode.LIGHT -> stringResource(R.string.light)
+    ThemeMode.DARK -> stringResource(R.string.dark)
+    ThemeMode.AMOLED -> "AMOLED"
+}
 
 @Composable
 private fun AppFont.localizedLabel(): String = stringResource(

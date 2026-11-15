@@ -110,7 +110,11 @@ fun UpdatesSettingsContent(
         AppSettings.UpdateChannel.BETA -> latestBeta
     }
 
-    val isNewer = targetRelease != null && AppUpdateChecker.isNewer(targetRelease.version, BuildConfig.VERSION_NAME)
+    val isUpdateAvailable = targetRelease != null && AppUpdateChecker.isUpdateEligible(
+        targetRelease.version,
+        BuildConfig.VERSION_NAME,
+        currentChannel,
+    )
 
     val updater = remember(context) { Updater(context) }
 
@@ -191,7 +195,14 @@ fun UpdatesSettingsContent(
                         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.5.sp),
                         color = HeaderTextColor,
                     )
-                } else if (isNewer && targetRelease != null) {
+                } else if (isUpdateAvailable && targetRelease != null) {
+                    val statusText = if (isBeta && !BuildConfig.VERSION_NAME.contains("beta", ignoreCase = true)) {
+                        "Beta available: v${targetRelease.version}"
+                    } else if (!isBeta && BuildConfig.VERSION_NAME.contains("beta", ignoreCase = true)) {
+                        "Stable release: v${targetRelease.version}"
+                    } else {
+                        "Update available: v${targetRelease.version}"
+                    }
                     Icon(
                         imageVector = SfIcons.Download,
                         contentDescription = null,
@@ -200,7 +211,7 @@ fun UpdatesSettingsContent(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = "Update available: v${targetRelease.version}",
+                        text = statusText,
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontSize = 14.5.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -216,7 +227,7 @@ fun UpdatesSettingsContent(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = "Up to date",
+                        text = if (isBeta && latestBeta == null) "No beta releases available" else "Up to date",
                         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.5.sp),
                         color = HeaderTextColor,
                     )
@@ -275,7 +286,7 @@ fun UpdatesSettingsContent(
                     }
                 }
 
-                isNewer && targetRelease != null -> {
+                isUpdateAvailable && targetRelease != null -> {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -292,8 +303,15 @@ fun UpdatesSettingsContent(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        val buttonText = if (isBeta && !BuildConfig.VERSION_NAME.contains("beta", ignoreCase = true)) {
+                            "Switch to Beta v${targetRelease.version}"
+                        } else if (!isBeta && BuildConfig.VERSION_NAME.contains("beta", ignoreCase = true)) {
+                            "Switch to Stable v${targetRelease.version}"
+                        } else {
+                            "Download v${targetRelease.version}"
+                        }
                         Text(
-                            text = "Download v${targetRelease.version}",
+                            text = buttonText,
                             style = MaterialTheme.typography.bodyLarge.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
@@ -363,6 +381,7 @@ fun UpdatesSettingsContent(
                     .clickable {
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         AppSettings.setUpdateChannel(AppSettings.UpdateChannel.STABLE)
+                        AppUpdateChecker.resetDownload()
                         AppUpdateChecker.refreshAvailableForChannel(AppSettings.UpdateChannel.STABLE)
                         scope.launch { AppUpdateChecker.check(force = true) }
                     }
@@ -401,6 +420,7 @@ fun UpdatesSettingsContent(
                     .clickable {
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         AppSettings.setUpdateChannel(AppSettings.UpdateChannel.BETA)
+                        AppUpdateChecker.resetDownload()
                         AppUpdateChecker.refreshAvailableForChannel(AppSettings.UpdateChannel.BETA)
                         scope.launch { AppUpdateChecker.check(force = true) }
                     }
@@ -478,8 +498,9 @@ fun UpdatesSettingsContent(
                         color = Color.White,
                     )
                     Spacer(Modifier.height(2.dp))
+                    val displayVersion = targetRelease?.version ?: latestStable?.version ?: BuildConfig.VERSION_NAME
                     Text(
-                        text = "v${if (isNewer) targetRelease?.version else BuildConfig.VERSION_NAME} • ${if (isBeta) "Beta" else "Stable"}",
+                        text = "v$displayVersion • ${if (isBeta) "Beta" else "Stable"}",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontSize = 13.sp,
                         ),
@@ -507,7 +528,7 @@ fun UpdatesSettingsContent(
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 14.dp),
                 ) {
-                    val notes = (if (isNewer) targetRelease?.notes else null)?.takeIf { it.isNotBlank() }
+                    val notes = (targetRelease?.notes ?: latestStable?.notes)?.takeIf { it.isNotBlank() }
                         ?: "No changelog published for this build."
                     CompositionLocalProvider(LocalContentColor provides Color.White) {
                         RichText(style = RichTextStyle.Default) {

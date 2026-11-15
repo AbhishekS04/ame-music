@@ -179,7 +179,7 @@ object AppUpdateChecker {
             AppSettings.UpdateChannel.STABLE -> _latestStable.value
             AppSettings.UpdateChannel.BETA -> _latestBeta.value
         }
-        if (target != null && isNewer(target.version, BuildConfig.VERSION_NAME)) {
+        if (target != null && isUpdateEligible(target.version, BuildConfig.VERSION_NAME, channel)) {
             _available.value = target
         } else {
             _available.value = null
@@ -380,5 +380,38 @@ object AppUpdateChecker {
             return l.preReleaseNum > c.preReleaseNum
         }
         return false
+    }
+
+    /**
+     * Determines whether an update or channel switch should be offered to the user.
+     */
+    fun isUpdateEligible(
+        targetVersion: String,
+        currentVersion: String,
+        channel: AppSettings.UpdateChannel,
+    ): Boolean {
+        val isCurrentBeta = currentVersion.contains("-", ignoreCase = true) ||
+            currentVersion.contains("beta", ignoreCase = true)
+        val isTargetBeta = targetVersion.contains("-", ignoreCase = true) ||
+            targetVersion.contains("beta", ignoreCase = true)
+        return when (channel) {
+            AppSettings.UpdateChannel.STABLE -> {
+                if (isCurrentBeta) {
+                    // Running a Beta build and switched to Stable: offer the latest stable release
+                    !isTargetBeta && targetVersion != currentVersion
+                } else {
+                    !isTargetBeta && isNewer(targetVersion, currentVersion)
+                }
+            }
+            AppSettings.UpdateChannel.BETA -> {
+                if (!isCurrentBeta) {
+                    // Running a Stable build and switched to Beta: offer latest beta
+                    isTargetBeta && (isNewer(targetVersion, currentVersion) ||
+                        targetVersion.substringBefore('-') == currentVersion)
+                } else {
+                    isTargetBeta && isNewer(targetVersion, currentVersion)
+                }
+            }
+        }
     }
 }

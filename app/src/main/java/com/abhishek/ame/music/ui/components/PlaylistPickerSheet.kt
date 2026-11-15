@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -62,6 +63,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -347,7 +349,12 @@ private fun NewPlaylistForm(
         }
     }
 
-    Column(Modifier.fillMaxWidth()) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .imePadding()
+            .navigationBarsPadding(),
+    ) {
         SheetTopBar(
             leadingIcon = if (onBack != null) SfIcons.ArrowBack else SfIcons.Close,
             leadingDescription = stringResource(if (onBack != null) R.string.back else R.string.close),
@@ -359,18 +366,28 @@ private fun NewPlaylistForm(
             confirmEnabled = name.isNotBlank(),
             onConfirm = submit,
             title = {
-                Column(Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 4.dp),
+                ) {
                     Text(
                         text = stringResource(R.string.new_playlist),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                        ),
                         color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = stringResource(
                             if (offline) R.string.saved_on_this_device else R.string.saved_to_youtube_music_account,
                         ),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             },
@@ -446,6 +463,7 @@ private fun NewPlaylistForm(
             }
         }
 
+        Spacer(Modifier.height(24.dp))
     }
 }
 
@@ -554,7 +572,7 @@ private val PlaylistPrivacy.icon: ImageVector
 
 /** The search filters' pill, carrying an icon ahead of its label. */
 @Composable
-private fun PrivacyPill(
+private fun RowScope.PrivacyPill(
     icon: ImageVector,
     label: String,
     selected: Boolean,
@@ -567,6 +585,7 @@ private fun PrivacyPill(
     }
     Row(
         modifier = Modifier
+            .weight(1f)
             .clip(RoundedCornerShape(percent = 50))
             .background(
                 if (selected) {
@@ -576,7 +595,8 @@ private fun PrivacyPill(
                 },
             )
             .clickable(onClick = onClick)
-            .padding(start = 11.dp, end = 14.dp, top = 7.dp, bottom = 7.dp),
+            .padding(horizontal = 8.dp, vertical = 9.dp),
+        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -588,8 +608,12 @@ private fun PrivacyPill(
         Spacer(Modifier.width(6.dp))
         Text(
             text = label,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.labelLarge.copy(
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            ),
             color = content,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

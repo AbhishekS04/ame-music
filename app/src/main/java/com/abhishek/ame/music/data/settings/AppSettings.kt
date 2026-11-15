@@ -123,7 +123,7 @@ enum class DownloadQuality(
 }
 
 enum class ThemeMode(val label: String) {
-    SYSTEM("System"), LIGHT("Light"), DARK("Dark")
+    SYSTEM("System"), LIGHT("Light"), DARK("Dark"), AMOLED("AMOLED Black")
 }
 
 /**

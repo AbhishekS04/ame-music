@@ -189,16 +189,28 @@ private fun usesArabicScript(text: String): Boolean = text.any { ch ->
 private fun alignsRight(text: String, alignEnd: Boolean, laneLocked: Boolean): Boolean =
     if (laneLocked) alignEnd else isRtl(text)
 
+private fun CharSequence.containsBengali(): Boolean {
+    for (i in 0 until length) {
+        val c = this[i]
+        if (c in '\u0980'..'\u09FF') return true
+    }
+    return false
+}
+
 /** Compute per-voice text style with absolute physical alignment based on the voice's own text direction. */
 private fun voiceStyle(
     base: TextStyle,
     text: String,
     alignEnd: Boolean,
     laneLocked: Boolean,
-): TextStyle = base.copy(
-    textAlign = if (alignsRight(text, alignEnd, laneLocked)) TextAlign.Right else TextAlign.Left,
-    textDirection = if (isRtl(text)) androidx.compose.ui.text.style.TextDirection.Rtl else androidx.compose.ui.text.style.TextDirection.Ltr,
-)
+): TextStyle {
+    val weight = if (text.containsBengali()) FontWeight.Normal else base.fontWeight
+    return base.copy(
+        fontWeight = weight,
+        textAlign = if (alignsRight(text, alignEnd, laneLocked)) TextAlign.Right else TextAlign.Left,
+        textDirection = if (isRtl(text)) androidx.compose.ui.text.style.TextDirection.Rtl else androidx.compose.ui.text.style.TextDirection.Ltr,
+    )
+}
 
 /**
  * How far back the part of the playing line that hasn't been sung yet is held.
