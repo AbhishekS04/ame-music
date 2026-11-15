@@ -244,6 +244,7 @@ fun SettingsScreen(
     val spatialAudio by AppSettings.spatialAudio.collectAsStateWithLifecycle()
     val nerdStats by AppSettings.showNerdStats.collectAsStateWithLifecycle()
     val listenTogetherButton by AppSettings.showListenTogetherButton.collectAsStateWithLifecycle()
+    val showTabBarLabels by AppSettings.showTabBarLabels.collectAsStateWithLifecycle()
     val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val liquidGlass by AppSettings.liquidGlass.collectAsStateWithLifecycle()
@@ -985,6 +986,20 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { AppSettings.setReduceAnimation(!reduceAnimation) },
+                )
+            }
+            row("Tab Bar Labels", "navigation", "labels", "tabs", "icons") {
+                SettingsRow(
+                    icon = SfIcons.Tune,
+                    title = "Tab Bar Labels",
+                    subtitle = "Show text labels under navigation icons",
+                    trailing = {
+                        IosSwitch(
+                            checked = showTabBarLabels,
+                            onCheckedChange = AppSettings::setShowTabBarLabels,
+                        )
+                    },
+                    onClick = { AppSettings.setShowTabBarLabels(!showTabBarLabels) },
                 )
             }
             val liquidGlassTitle = stringResource(R.string.liquid_glass)

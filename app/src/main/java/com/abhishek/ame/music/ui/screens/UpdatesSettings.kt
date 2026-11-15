@@ -226,8 +226,14 @@ fun UpdatesSettingsContent(
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(Modifier.width(8.dp))
+                    val upToDateText = when {
+                        !isBeta && BuildConfig.VERSION_NAME.contains("beta", ignoreCase = true) ->
+                            "Enrolled in Stable (updates on next stable release)"
+                        isBeta && latestBeta == null -> "No beta releases available"
+                        else -> "Up to date"
+                    }
                     Text(
-                        text = if (isBeta && latestBeta == null) "No beta releases available" else "Up to date",
+                        text = upToDateText,
                         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.5.sp),
                         color = HeaderTextColor,
                     )

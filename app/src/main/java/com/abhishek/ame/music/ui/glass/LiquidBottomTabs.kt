@@ -149,19 +149,6 @@ fun LiquidBottomTabs(
         }
 
         val offsetAnimation = remember { Animatable(0f) }
-        val panelOffset by remember(density) {
-            derivedStateOf {
-                val width = widthPx.floatValue
-                val fraction = if (width > 0f) {
-                    (offsetAnimation.value / width).fastCoerceIn(-1f, 1f)
-                } else {
-                    0f
-                }
-                with(density) {
-                    4f.dp.toPx() * fraction.sign * EaseOut.transform(abs(fraction))
-                }
-            }
-        }
 
         val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
         val animationScope = rememberCoroutineScope()
@@ -229,8 +216,8 @@ fun LiquidBottomTabs(
                 animationScope = animationScope,
                 position = { size, offset ->
                     Offset(
-                        if (isLtr) (dampedDragAnimation.value + 0.5f) * tabWidth() + panelOffset
-                        else size.width - (dampedDragAnimation.value + 0.5f) * tabWidth() + panelOffset,
+                        if (isLtr) (dampedDragAnimation.value + 0.5f) * tabWidth()
+                        else size.width - (dampedDragAnimation.value + 0.5f) * tabWidth(),
                         size.height / 2f
                     )
                 }
@@ -239,9 +226,6 @@ fun LiquidBottomTabs(
 
         Row(
             Modifier
-                .graphicsLayer {
-                    translationX = panelOffset
-                }
                 // LOCAL CHANGE: the shell is made of the app's glass, like every
                 // other pane. The puck below keeps its own recipe on purpose —
                 // what it does is press-driven, a bend and a rim that only exist
@@ -253,12 +237,6 @@ fun LiquidBottomTabs(
                     // panel switcher is not a different material from the bar.
                     blurRadiusDp = LocalGlassEffectConfig.current.blurRadius,
                     ownBackdrop = backdrop,
-                    layerBlock = {
-                        val progress = dampedDragAnimation.pressProgress
-                        val scale = lerp(1f, 1f + 16f.dp.toPx() / size.width, progress)
-                        scaleX = scale
-                        scaleY = scale
-                    },
                 ) else Modifier)
                 // Clip the row's rectangular touch glow, not its selector siblings.
                 .clip(ContinuousCapsule())
@@ -290,9 +268,6 @@ fun LiquidBottomTabs(
                     .clearAndSetSemantics {}
                     .alpha(0f)
                     .layerBackdrop(tabsBackdrop)
-                    .graphicsLayer {
-                        translationX = panelOffset
-                    }
                     .height(height - 8f.dp)
                     .fillMaxWidth()
                     .padding(horizontal = 4f.dp)
@@ -315,8 +290,8 @@ fun LiquidBottomTabs(
             .graphicsLayer {
                 alpha = indicatorAlpha
                 translationX =
-                    if (isLtr) dampedDragAnimation.value * tabWidth() + panelOffset
-                    else size.width - (dampedDragAnimation.value + 1f) * tabWidth() + panelOffset
+                    if (isLtr) dampedDragAnimation.value * tabWidth()
+                    else size.width - (dampedDragAnimation.value + 1f) * tabWidth()
             }
         // Grow the sampling surface itself, rather than scaling a capture of
         // the resting slot. Both selector layers keep the same centre and read

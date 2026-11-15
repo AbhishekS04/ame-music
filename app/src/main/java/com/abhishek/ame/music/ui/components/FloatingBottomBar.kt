@@ -343,7 +343,7 @@ fun FloatingBottomBar(
             // Echo's floating nav bar uses for its own liquid glass.
             val glassTint = glassContentColor()
             val adaptiveTint = if (useGlass) glassTint else null
-            val selectedAccent = Color(0xFFFA2D48)
+            val selectedAccent = adaptiveTint ?: MaterialTheme.colorScheme.primary
             tabs.forEachIndexed { index, tab ->
                 BottomBarItem(
                     tab = tab,
@@ -378,6 +378,7 @@ private fun BottomBarItem(
         label = "tabScale",
     )
     val haptics = rememberHaptics()
+    val showTabBarLabels by AppSettings.showTabBarLabels.collectAsStateWithLifecycle()
     val tint by animateColorAsState(
         targetValue = if (selected) {
             selectedTint ?: MaterialTheme.colorScheme.primary
@@ -390,6 +391,7 @@ private fun BottomBarItem(
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
         modifier = modifier
             .clip(RoundedCornerShape(percent = 50))
             .clickable(
@@ -406,19 +408,21 @@ private fun BottomBarItem(
             contentDescription = tab.label,
             tint = tint,
             modifier = Modifier
-                .size(TAB_ICON_SIZE)
+                .size(if (showTabBarLabels) TAB_ICON_SIZE else 28.dp)
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
                 },
         )
-        Spacer(Modifier.height(TAB_ICON_LABEL_GAP))
-        Text(
-            text = tab.label,
-            style = tabLabelStyle(),
-            color = tint,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        if (showTabBarLabels) {
+            Spacer(Modifier.height(TAB_ICON_LABEL_GAP))
+            Text(
+                text = tab.label,
+                style = tabLabelStyle(),
+                color = tint,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }

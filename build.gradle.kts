@@ -38,7 +38,7 @@ buildscript {
  * No "v" in the name — the in-app updater reads it as a number; the "v" is the
  * release tag's alone.
  */
-extra["ameVersionCode"] = 8
+extra["ameVersionCode"] = 9
 extra["ameVersionName"] = "0.1.6"
 
 /*
@@ -56,7 +56,7 @@ extra["ameVersionName"] = "0.1.6"
  * comes. Blanking this line is the one step that turns a beta into a release,
  * so it is the one place to get right.
  */
-extra["ameBetaSuffix"] = "beta1"
+extra["ameBetaSuffix"] = "beta2"
 
 plugins {
     id("com.android.application") version "8.10.1" apply false

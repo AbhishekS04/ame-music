@@ -420,6 +420,8 @@ object AppSettings {
     val playbackSpeed = MutableStateFlow(1.0f)
     val themeMode = MutableStateFlow(ThemeMode.DARK)
     val appFont = MutableStateFlow(AppFont.DEFAULT)
+    /** Show text labels under bottom navigation bar icons. Default is false (icons only). */
+    val showTabBarLabels = MutableStateFlow(false)
 
     /** Keep playing similar music once the queue runs out. */
     val autoplay = MutableStateFlow(true)
@@ -997,6 +999,7 @@ object AppSettings {
         repeatMode.value = prefs.getInt(KEY_REPEAT_MODE, Player.REPEAT_MODE_OFF)
         showNerdStats.value = prefs.getBoolean(KEY_NERD_STATS, false)
         showListenTogetherButton.value = prefs.getBoolean(KEY_LISTEN_TOGETHER_BUTTON, false)
+        showTabBarLabels.value = prefs.getBoolean(KEY_SHOW_TAB_BAR_LABELS, false)
         reduceAnimation.value = prefs.getBoolean(KEY_REDUCE_ANIMATION, false)
         onboardingComplete.value = prefs.getBoolean(KEY_ONBOARDING_COMPLETE, false)
         lastSeenAnnouncementId.value = prefs.getInt(KEY_LAST_SEEN_ANNOUNCEMENT_ID, 0)
@@ -1382,6 +1385,11 @@ object AppSettings {
         val editor = prefs.edit().putBoolean(KEY_REDUCE_ANIMATION, value)
         if (value) editor.putBoolean(KEY_HIGH_PERFORMANCE_MODE, false)
         editor.apply()
+    }
+
+    fun setShowTabBarLabels(value: Boolean) {
+        showTabBarLabels.value = value
+        prefs.edit().putBoolean(KEY_SHOW_TAB_BAR_LABELS, value).apply()
     }
 
     fun setOnboardingComplete() {
@@ -2233,6 +2241,7 @@ object AppSettings {
     private const val KEY_LISTEN_TOGETHER_BUTTON = "show_listen_together_button"
     private const val KEY_CACHE_LIMIT = "audio_cache_limit_bytes"
     private const val KEY_REDUCE_ANIMATION = "reduce_animation"
+    private const val KEY_SHOW_TAB_BAR_LABELS = "show_tab_bar_labels"
     private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
     private const val KEY_LAST_SEEN_ANNOUNCEMENT_ID = "last_seen_notice_id"
     private const val KEY_HIGH_PERFORMANCE_MODE = "high_performance_mode"

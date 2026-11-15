@@ -884,8 +884,8 @@ private fun AmeApp(
      */
     val updateNotice = updateAvailable
 
-    LaunchedEffect(updateNotice) {
-        if (updateNotice != null && !updateDialogShown) {
+    LaunchedEffect(updateNotice, selectedTab) {
+        if (updateNotice != null && !updateDialogShown && selectedTab != TAB_SETTINGS) {
             updateDialogShown = true
             showUpdateDialog = true
         }
@@ -5586,8 +5586,8 @@ private fun AmeApp(
             }
         }
 
-        // ---- Update available (once per launch; held until the welcome is done) ----
-        if (showUpdateDialog && onboardingComplete) {
+        // ---- Update available (once per launch; held until the welcome is done; suppressed on settings) ----
+        if (showUpdateDialog && onboardingComplete && selectedTab != TAB_SETTINGS) {
             updateNotice?.let { update ->
                 UpdateAvailableDialog(
                     version = update.version,

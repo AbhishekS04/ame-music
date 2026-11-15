@@ -384,33 +384,22 @@ object AppUpdateChecker {
 
     /**
      * Determines whether an update or channel switch should be offered to the user.
+     * Only releases strictly newer than the running version are eligible, avoiding
+     * Android PackageInstaller INSTALL_FAILED_VERSION_DOWNGRADE failures.
      */
     fun isUpdateEligible(
         targetVersion: String,
         currentVersion: String,
         channel: AppSettings.UpdateChannel,
     ): Boolean {
-        val isCurrentBeta = currentVersion.contains("-", ignoreCase = true) ||
-            currentVersion.contains("beta", ignoreCase = true)
         val isTargetBeta = targetVersion.contains("-", ignoreCase = true) ||
             targetVersion.contains("beta", ignoreCase = true)
         return when (channel) {
             AppSettings.UpdateChannel.STABLE -> {
-                if (isCurrentBeta) {
-                    // Running a Beta build and switched to Stable: offer the latest stable release
-                    !isTargetBeta && targetVersion != currentVersion
-                } else {
-                    !isTargetBeta && isNewer(targetVersion, currentVersion)
-                }
+                !isTargetBeta && isNewer(targetVersion, currentVersion)
             }
             AppSettings.UpdateChannel.BETA -> {
-                if (!isCurrentBeta) {
-                    // Running a Stable build and switched to Beta: offer latest beta
-                    isTargetBeta && (isNewer(targetVersion, currentVersion) ||
-                        targetVersion.substringBefore('-') == currentVersion)
-                } else {
-                    isTargetBeta && isNewer(targetVersion, currentVersion)
-                }
+                isTargetBeta && isNewer(targetVersion, currentVersion)
             }
         }
     }
